@@ -1,0 +1,1943 @@
+[gd_scene load_steps=62 format=4 uid="uid://cvfwyiug5hkix"]
+
+[ext_resource type="TileSet" uid="uid://dqldwnc6t1ta6" path="res://resources/world_tiles.tres" id="1_ground"]
+[ext_resource type="Texture2D" uid="uid://jrpuu4vlmpix" path="res://assets/generated/house.png" id="3_house"]
+[ext_resource type="Texture2D" uid="uid://dfyjjml5kkpih" path="res://assets/generated/cliff_north.png" id="4_cliff"]
+[ext_resource type="Texture2D" uid="uid://bnvwl44p28yq0" path="res://assets/decor/plants/spr_deco_tree_01_strip4.png" id="5_tree_round"]
+[ext_resource type="Texture2D" uid="uid://cld5icflo6qmr" path="res://assets/decor/plants/spr_deco_tree_02_strip4.png" id="6_tree_pine"]
+[ext_resource type="Texture2D" uid="uid://d1ljiwlq57v1c" path="res://assets/generated/prop_crate.png" id="7_crate"]
+[ext_resource type="Texture2D" uid="uid://bi05118ag6nta" path="res://assets/generated/prop_crate_stack.png" id="8_crate_stack"]
+[ext_resource type="Texture2D" uid="uid://diufl64ndltxp" path="res://assets/generated/prop_stump.png" id="9_stump"]
+[ext_resource type="Texture2D" uid="uid://jgku3khkxp08" path="res://assets/generated/prop_boulder.png" id="10_boulder"]
+[ext_resource type="Texture2D" uid="uid://qy6selq8wtgm" path="res://assets/generated/npc_merchant.png" id="12_npc"]
+[ext_resource type="Texture2D" uid="uid://bjaftykvhfkfm" path="res://assets/generated/stall.png" id="13b_stall"]
+[ext_resource type="Texture2D" uid="uid://dcfjks8tq04sr" path="res://assets/crops/crate_base.png" id="13_bin"]
+[ext_resource type="Script" path="res://scripts/world_player.gd" id="14_player"]
+[ext_resource type="Script" path="res://scripts/prop_anim.gd" id="15_propanim"]
+[ext_resource type="Texture2D" uid="uid://dnaksc1v5woc" path="res://assets/generated/pond.png" id="16_pond"]
+[ext_resource type="Texture2D" uid="uid://c3tul7q2e3wkc" path="res://assets/generated/grass_bg.png" id="17_grass"]
+[ext_resource type="Texture2D" uid="uid://cpxofju63cc3u" path="res://assets/generated/fence_e_b.png" id="18_fence_e_b"]
+[ext_resource type="Texture2D" uid="uid://2wvahgbamnin" path="res://assets/generated/fence_e_t.png" id="18_fence_e_t"]
+[ext_resource type="Texture2D" uid="uid://bcxvkhus0bbib" path="res://assets/generated/fence_n_e.png" id="18_fence_n_e"]
+[ext_resource type="Texture2D" uid="uid://ta7n6kh0x8xv" path="res://assets/generated/fence_n_w.png" id="18_fence_n_w"]
+[ext_resource type="Texture2D" uid="uid://dedipvin5odfa" path="res://assets/generated/fence_s.png" id="18_fence_s"]
+[ext_resource type="Texture2D" uid="uid://dan32nqcf2h8y" path="res://assets/generated/fence_w_b.png" id="18_fence_w_b"]
+[ext_resource type="Texture2D" uid="uid://c58vcwnbwtjcb" path="res://assets/generated/fence_w_t.png" id="18_fence_w_t"]
+[ext_resource type="Script" path="res://scripts/world_game.gd" id="19_game"]
+[ext_resource type="Texture2D" uid="uid://idedn1ks1gpt" path="res://assets/crops/beetroot_04.png" id="crop_beetroot_4"]
+[ext_resource type="Texture2D" uid="uid://f6mdpuwlv1uu" path="res://assets/crops/cabbage_03.png" id="crop_cabbage_3"]
+[ext_resource type="Texture2D" uid="uid://dopd1273eovku" path="res://assets/crops/carrot_04.png" id="crop_carrot_4"]
+[ext_resource type="Texture2D" uid="uid://cu7di5uqy0lfx" path="res://assets/crops/radish_01.png" id="crop_radish_1"]
+[ext_resource type="Texture2D" uid="uid://bnya5722lewms" path="res://assets/generated/tuft_0.png" id="tuft_0"]
+[ext_resource type="Texture2D" uid="uid://dfwwnv2a7of6v" path="res://assets/generated/tuft_1.png" id="tuft_1"]
+[ext_resource type="Texture2D" uid="uid://c01hena4kdl4g" path="res://assets/generated/tuft_2.png" id="tuft_2"]
+
+[sub_resource type="RectangleShape2D" id="Shape_3"]
+size = Vector2(960, 56)
+
+[sub_resource type="RectangleShape2D" id="Shape_14"]
+size = Vector2(48, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_15"]
+size = Vector2(88, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_16"]
+size = Vector2(136, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_17"]
+size = Vector2(160, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_18"]
+size = Vector2(176, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_19"]
+size = Vector2(192, 24)
+
+[sub_resource type="RectangleShape2D" id="Shape_20"]
+size = Vector2(200, 24)
+
+[sub_resource type="RectangleShape2D" id="Shape_21"]
+size = Vector2(192, 16)
+
+[sub_resource type="RectangleShape2D" id="Shape_22"]
+size = Vector2(176, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_23"]
+size = Vector2(168, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_24"]
+size = Vector2(152, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_25"]
+size = Vector2(112, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_26"]
+size = Vector2(96, 16)
+
+[sub_resource type="RectangleShape2D" id="Shape_27"]
+size = Vector2(96, 16)
+
+[sub_resource type="RectangleShape2D" id="Shape_28"]
+size = Vector2(224, 16)
+
+[sub_resource type="RectangleShape2D" id="Shape_29"]
+size = Vector2(16, 160)
+
+[sub_resource type="RectangleShape2D" id="Shape_30"]
+size = Vector2(16, 160)
+
+[sub_resource type="RectangleShape2D" id="Shape_1"]
+size = Vector2(41, 42)
+
+[sub_resource type="RectangleShape2D" id="Shape_2"]
+size = Vector2(41, 42)
+
+[sub_resource type="RectangleShape2D" id="Shape_4"]
+size = Vector2(18, 10)
+
+[sub_resource type="RectangleShape2D" id="Shape_5"]
+size = Vector2(16, 10)
+
+[sub_resource type="RectangleShape2D" id="Shape_6"]
+size = Vector2(14, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_7"]
+size = Vector2(14, 10)
+
+[sub_resource type="RectangleShape2D" id="Shape_9"]
+size = Vector2(64, 16)
+
+[sub_resource type="RectangleShape2D" id="Shape_8"]
+size = Vector2(12, 8)
+
+[sub_resource type="RectangleShape2D" id="Shape_10"]
+size = Vector2(48, 26)
+
+[sub_resource type="RectangleShape2D" id="Shape_11"]
+size = Vector2(48, 40)
+
+[sub_resource type="RectangleShape2D" id="Shape_12"]
+size = Vector2(48, 40)
+
+[sub_resource type="RectangleShape2D" id="Shape_13"]
+size = Vector2(10, 6)
+
+[node name="World" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("19_game")
+
+[node name="CanvasModulate" type="CanvasModulate" parent="."]
+color = Color(1, 1, 1, 1)
+
+[node name="Grass" type="Sprite2D" parent="."]
+z_index = -10
+texture_repeat = 2
+texture = ExtResource("17_grass")
+centered = false
+region_enabled = true
+region_rect = Rect2(0, 0, 960, 640)
+
+[node name="GroundLayer" type="TileMapLayer" parent="."]
+tile_map_data = PackedByteArray("AAADABYAAQA8AAEAAAADABcAAQAPAAEAAAADABgAAQAXAAAAAAAEABYAAQAsAAcAAAAEABcAAQA/AA8AAAAEABgAAQAHAAwAAAAFABYAAQAcAAcAAAAFABcAAQAvAA8AAAAFABgAAQA3AAwAAAAGABYAAQAMAAcAAAAGABcAAQAfAA8AAAAGABgAAQAnAAwAAAAHABYAAQA8AAcAAAAHABcAAQAPAA8AAAAHABgAAQAXAAwAAAAIABYAAQAsAAcAAAAIABcAAQA/AA8AAAAIABgAAQAHAAwAAAAJABYAAQAcAAcAAAAJABcAAQAvAA8AAAAJABgAAQA3AAwAAAAKABYAAQAMAAcAAAAKABcAAQAfAA8AAAAKABgAAQAnAAwAAAALABYAAQA8AAcAAAALABcAAQAPAA8AAAALABgAAQAXAAwAAAAMABYAAQAsAAcAAAAMABcAAQA/AA8AAAAMABgAAQAHAAwAAAANABYAAQAcAAcAAAANABcAAQAvAA8AAAANABgAAQA3AAwAAAAOABYAAQAMAAcAAAAOABcAAQAfAA8AAAAOABgAAQAnAAwAAAAPABYAAQA8AAcAAAAPABcAAQAPAA8AAAAPABgAAQAXAAwAAAAQABYAAQAsAAcAAAAQABcAAQA/AA8AAAAQABgAAQAPAAwAAAARABYAAQAcAAcAAAARABcAAQAvAA8AAAARABgAAQA/AA0AAAARABkAAQAHAAgAAAASABYAAQAMAAcAAAASABcAAQAfAA8AAAASABgAAQAnAA8AAAASABkAAQAzAAwAAAATABYAAQA8AAcAAAATABcAAQAPAA8AAAATABgAAQAXAA4AAAAUABYAAQAsAAcAAAAUABcAAQA/AA8AAAAUABgAAQAHAAwAAAAVABYAAQAcAAcAAAAVABcAAQAvAA8AAAAVABgAAQA3AAwAAAAWAA4AAQAMAAEAAAAWAA8AAQAfAAEAAAAWABAAAQAvAAEAAAAWABEAAQA/AAEAAAAWABIAAQAHAAAAAAAWABYAAQAMAAcAAAAWABcAAQAfAA8AAAAWABgAAQAnAAwAAAAXAA4AAQA8AAcAAAAXAA8AAQAPAA8AAAAXABAAAQAfAA8AAAAXABEAAQAvAA8AAAAXABIAAQA3AAwAAAAXABYAAQA8AAcAAAAXABcAAQAPAA8AAAAXABgAAQAXAAwAAAAYAA4AAQAsAAcAAAAYAA8AAQA/AA8AAAAYABAAAQAPAA8AAAAYABEAAQAfAA8AAAAYABIAAQAvAAwAAAAYABYAAQAuAAcAAAAYABcAAQA/AA8AAAAYABgAAQAHAAwAAAAZAA4AAQAcAAcAAAAZAA8AAQAvAA8AAAAZABAAAQA/AA8AAAAZABEAAQAPAA8AAAAZABIAAQAfAA0AAAAZABMAAQAvAAkAAAAZABQAAQA/AAEAAAAZABUAAQAPAAMAAAAZABYAAQAfAAcAAAAZABcAAQAvAA8AAAAZABgAAQA3AAwAAAAaAA4AAQAMAAcAAAAaAA8AAQAfAA8AAAAaABAAAQAvAA8AAAAaABEAAQA/AA8AAAAaABIAAQAPAA8AAAAaABMAAQAfAA8AAAAaABQAAQAvAA8AAAAaABUAAQA/AA8AAAAaABYAAQAPAA8AAAAaABcAAQAfAA8AAAAaABgAAQAnAAwAAAAbAA4AAQA8AAcAAAAbAA8AAQAPAA8AAAAbABAAAQAfAA8AAAAbABEAAQAvAA8AAAAbABIAAQA3AA8AAAAbABMAAQADAA8AAAAbABQAAQARAA8AAAAbABUAAQApAA8AAAAbABYAAQA9AA8AAAAbABcAAQAPAA8AAAAbABgAAQAfAAwAAAAcAA4AAQAsAAcAAAAcAA8AAQA/AA8AAAAcABAAAQAPAA8AAAAcABEAAQAfAA8AAAAcABIAAQAnAA4AAAAcABYAAQAsAA8AAAAcABcAAQA/AA8AAAAcABgAAQAPAA0AAAAcABkAAQAfAAkAAAAcABoAAQAnAAAAAAAdAA4AAQAcAAcAAAAdAA8AAQAvAA8AAAAdABAAAQA/AA8AAAAdABEAAQAPAA8AAAAdABIAAQAXAAwAAAAdABYAAQAcAAcAAAAdABcAAQAvAA8AAAAdABgAAQA/AA8AAAAdABkAAQAPAA8AAAAdABoAAQAXAAwAAAAeAA4AAQAAAAcAAAAeAA8AAQARAA8AAAAeABAAAQAhAA8AAAAeABEAAQAxAA8AAAAeABIAAQABAAwAAAAeABYAAQAMAAcAAAAeABcAAQAfAA8AAAAeABgAAQAvAA8AAAAeABkAAQA/AA8AAAAeABoAAQAHAAwAAAAfABYAAQA8AAcAAAAfABcAAQAPAA8AAAAfABgAAQAfAA8AAAAfABkAAQAvAA8AAAAfABoAAQA3AAwAAAAgABYAAQAsAAcAAAAgABcAAQA/AA8AAAAgABgAAQAPAA8AAAAgABkAAQAfAA8AAAAgABoAAQAnAAwAAAAhABYAAQAcAAcAAAAhABcAAQAvAA8AAAAhABgAAQA3AA8AAAAhABkAAQADAA8AAAAhABoAAQARAAwAAAAiABYAAQAMAAcAAAAiABcAAQAfAA8AAAAiABgAAQAnAA4AAAAjABYAAQA8AAcAAAAjABcAAQAPAA8AAAAjABgAAQAXAAwAAAAkABYAAQAsAAcAAAAkABcAAQA/AA8AAAAkABgAAQAHAAwAAAAlABYAAQAcAAcAAAAlABcAAQAvAA8AAAAlABgAAQA3AAwAAAAmABYAAQAMAAcAAAAmABcAAQAfAA8AAAAmABgAAQAnAAwAAAAnABYAAQA8AAcAAAAnABcAAQAPAA8AAAAnABgAAQAXAAwAAAAoABYAAQAsAAcAAAAoABcAAQA/AA8AAAAoABgAAQAHAAwAAAApABYAAQAcAAcAAAApABcAAQAvAA8AAAApABgAAQA3AAwAAAAqABYAAQAMAAcAAAAqABcAAQAfAA8AAAAqABgAAQAnAAwAAAArABYAAQA+AAcAAAArABcAAQAPAA8AAAArABgAAQAXAAwAAAAsABEAAQAcAAEAAAAsABIAAQAvAAEAAAAsABMAAQA/AAEAAAAsABQAAQAPAAEAAAAsABUAAQAfAAMAAAAsABYAAQAvAAcAAAAsABcAAQA/AA8AAAAsABgAAQAHAAwAAAAtABEAAQAMAAcAAAAtABIAAQAfAA8AAAAtABMAAQAvAA8AAAAtABQAAQA/AA8AAAAtABUAAQAPAA8AAAAtABYAAQAfAA8AAAAtABcAAQAvAA8AAAAtABgAAQA3AAwAAAAuABEAAQA8AAcAAAAuABIAAQAPAA8AAAAuABMAAQAfAA8AAAAuABQAAQAvAA8AAAAuABUAAQA/AA8AAAAuABYAAQAPAA8AAAAuABcAAQAfAA8AAAAuABgAAQAnAAwAAAAvABEAAQAsAAcAAAAvABIAAQA/AA8AAAAvABMAAQAPAA8AAAAvABQAAQAfAA8AAAAvABUAAQAvAA8AAAAvABYAAQA/AA8AAAAvABcAAQAPAA8AAAAvABgAAQAXAAwAAAAwABEAAQAcAAcAAAAwABIAAQAvAA8AAAAwABMAAQA/AA8AAAAwABQAAQAPAA8AAAAwABUAAQAfAA8AAAAwABYAAQAvAA8AAAAwABcAAQA/AA8AAAAwABgAAQAHAAwAAAAxABEAAQAMAAcAAAAxABIAAQAfAA8AAAAxABMAAQAvAA8AAAAxABQAAQA/AA8AAAAxABUAAQAPAA8AAAAxABYAAQAfAA8AAAAxABcAAQAvAA8AAAAxABgAAQA3AAwAAAAyABEAAQA8AAcAAAAyABIAAQAPAA8AAAAyABMAAQAfAA8AAAAyABQAAQAvAA8AAAAyABUAAQA/AA8AAAAyABYAAQAPAA8AAAAyABcAAQAfAA8AAAAyABgAAQAnAAwAAAAzABEAAQAgAAcAAAAzABIAAQAxAA8AAAAzABMAAQABAA8AAAAzABQAAQARAA8AAAAzABUAAQApAA8AAAAzABYAAQA9AA8AAAAzABcAAQAPAA8AAAAzABgAAQAXAAwAAAA0ABYAAQAsAA8AAAA0ABcAAQA/AA8AAAA0ABgAAQAHAAwAAAA1ABYAAQAcAAcAAAA1ABcAAQAvAA8AAAA1ABgAAQA3AAwAAAA2ABYAAQAMAAcAAAA2ABcAAQAfAA8AAAA2ABgAAQAnAAwAAAA3ABYAAQA8AAcAAAA3ABcAAQAPAA8AAAA3ABgAAQAXAAwAAAA4ABYAAQAgAAcAAAA4ABcAAQAxAA8AAAA4ABgAAQABAAwAAAA=")
+tile_set = ExtResource("1_ground")
+
+[node name="FarmSoilLayer" type="TileMapLayer" parent="."]
+z_index = 1
+tile_map_data = PackedByteArray("AAAMABoAAgAsAAEAAAAMABsAAgA/AAEAAAAMABwAAgAPAAEAAAAMAB0AAgAfAAEAAAAMAB4AAgAvAAEAAAAMAB8AAgA/AAEAAAAMACAAAgAPAAEAAAAMACEAAgAXAAAAAAANABoAAgAcAAcAAAANABsAAgAvAA8AAAANABwAAgA/AA8AAAANAB0AAgAPAA8AAAANAB4AAgAfAA8AAAANAB8AAgAvAA8AAAANACAAAgA/AA8AAAANACEAAgAHAAwAAAAOABoAAgAMAAcAAAAOABsAAgAfAA8AAAAOABwAAgAvAA8AAAAOAB0AAgA/AA8AAAAOAB4AAgAPAA8AAAAOAB8AAgAfAA8AAAAOACAAAgAvAA8AAAAOACEAAgA3AAwAAAAPABoAAgA8AAcAAAAPABsAAgAPAA8AAAAPABwAAgAfAA8AAAAPAB0AAgAvAA8AAAAPAB4AAgA/AA8AAAAPAB8AAgAPAA8AAAAPACAAAgAfAA8AAAAPACEAAgAnAAwAAAAQABoAAgAsAAcAAAAQABsAAgA/AA8AAAAQABwAAgAPAA8AAAAQAB0AAgAfAA8AAAAQAB4AAgAvAA8AAAAQAB8AAgA/AA8AAAAQACAAAgAPAA8AAAAQACEAAgAXAAwAAAARABoAAgAcAAcAAAARABsAAgAvAA8AAAARABwAAgA/AA8AAAARAB0AAgAPAA8AAAARAB4AAgAfAA8AAAARAB8AAgAvAA8AAAARACAAAgA/AA8AAAARACEAAgAHAAwAAAASABoAAgAMAAcAAAASABsAAgAfAA8AAAASABwAAgAvAA8AAAASAB0AAgA/AA8AAAASAB4AAgAPAA8AAAASAB8AAgAfAA8AAAASACAAAgAvAA8AAAASACEAAgA3AAwAAAATABoAAgA8AAcAAAATABsAAgAPAA8AAAATABwAAgAfAA8AAAATAB0AAgAvAA8AAAATAB4AAgA/AA8AAAATAB8AAgAPAA8AAAATACAAAgAfAA8AAAATACEAAgAnAAwAAAAUABoAAgAsAAcAAAAUABsAAgA/AA8AAAAUABwAAgAPAA8AAAAUAB0AAgAfAA8AAAAUAB4AAgAvAA8AAAAUAB8AAgA/AA8AAAAUACAAAgAPAA8AAAAUACEAAgAXAAwAAAAVABoAAgAcAAcAAAAVABsAAgAvAA8AAAAVABwAAgA/AA8AAAAVAB0AAgAPAA8AAAAVAB4AAgAfAA8AAAAVAB8AAgAvAA8AAAAVACAAAgA/AA8AAAAVACEAAgAHAAwAAAAWABoAAgAMAAcAAAAWABsAAgAfAA8AAAAWABwAAgAvAA8AAAAWAB0AAgA/AA8AAAAWAB4AAgAPAA8AAAAWAB8AAgAfAA8AAAAWACAAAgAvAA8AAAAWACEAAgA3AAwAAAAXABoAAgAwAAcAAAAXABsAAgABAA8AAAAXABwAAgARAA8AAAAXAB0AAgAhAA8AAAAXAB4AAgAxAA8AAAAXAB8AAgABAA8AAAAXACAAAgARAA8AAAAXACEAAgAhAAwAAAA=")
+tile_set = ExtResource("1_ground")
+
+[node name="DecorLayer" type="TileMapLayer" parent="."]
+z_index = 3
+tile_map_data = PackedByteArray("AAAAAAoAAAAcAAEAAAAAAA4AAAAbAAEAAAAAABoAAAAiAAMAAAABAAoAAAAiAAMAAAACAA4AAAAfAAQAAAADABIAAAAjAAEAAAADABMAAAAhAAMAAAAEAAkAAAAjAAIAAAAEAAwAAAAjAAMAAAAFAB4AAAAjAAIAAAAGAAwAAAAhAAMAAAAGAA0AAAAjAAIAAAAGABQAAAAiAAEAAAAGABkAAAAcAAEAAAAGAB0AAAAjAAMAAAAGAB4AAAAhAAMAAAAGACQAAAAjAAEAAAAHAAsAAAAjAAEAAAAHAAwAAAAjAAMAAAAHAA4AAAAiAAMAAAAHAB0AAAAhAAMAAAAHAB8AAAAjAAIAAAAIAAwAAAAiAAEAAAAIAA0AAAAiAAIAAAAIAA4AAAAiAAMAAAAIABsAAAAiAAIAAAAIABwAAAAiAAEAAAAIAB0AAAAjAAEAAAAIAB8AAAAiAAEAAAAIACAAAAAiAAEAAAAJAAoAAAAhAAMAAAAJAB4AAAAiAAMAAAAJAB8AAAAiAAIAAAAJACAAAAAeAAEAAAAKAA0AAAAjAAEAAAAKABoAAAAcAAEAAAAKAB4AAAAiAAIAAAAKAB8AAAAiAAMAAAALAAUAAAAbAAEAAAALAA8AAAAjAAEAAAAPABIAAAAjAAIAAAAQAAUAAAAiAAMAAAAQABAAAAAeAAEAAAAQABEAAAAiAAIAAAAQABIAAAAhAAMAAAAQABMAAAAiAAMAAAARABEAAAAjAAEAAAARABMAAAAjAAEAAAASABAAAAAiAAIAAAASABEAAAAjAAEAAAASABIAAAAiAAIAAAASABMAAAAiAAEAAAASABQAAAAjAAMAAAASACMAAAAhAAMAAAASACQAAAAiAAEAAAATAA8AAAAeAAEAAAATABIAAAAiAAEAAAATABMAAAAiAAMAAAATACUAAAAhAAMAAAAUABEAAAAhAAMAAAAUABMAAAAjAAMAAAAUACQAAAAiAAEAAAAVACMAAAAjAAMAAAAVACUAAAAiAAMAAAAVACYAAAAjAAEAAAAWAAQAAAAhAAMAAAAWAAsAAAAiAAIAAAAXABQAAAAjAAMAAAAXACQAAAAiAAEAAAAYACYAAAAdAAEAAAAaACMAAAAeAAEAAAAdABQAAAAiAAIAAAAdAB8AAAAdAAEAAAAeAAcAAAAhAAMAAAAeAAgAAAAjAAIAAAAeAAkAAAAhAAMAAAAeAAoAAAAjAAEAAAAeAAwAAAAiAAMAAAAeACAAAAAiAAIAAAAfAAgAAAAjAAIAAAAfAAkAAAAjAAIAAAAfAAoAAAAhAAMAAAAfAAsAAAAiAAIAAAAfABAAAAAjAAMAAAAfABUAAAAcAAEAAAAfACMAAAAiAAEAAAAgAAkAAAAiAAIAAAAgABIAAAAfAAQAAAAgABUAAAAjAAIAAAAhAB8AAAAiAAEAAAAhACMAAAAiAAEAAAAhACQAAAAiAAIAAAAhACYAAAAhAAMAAAAhACcAAAAiAAIAAAAiACMAAAAjAAMAAAAiACQAAAAiAAMAAAAiACUAAAAiAAEAAAAkABIAAAAcAAEAAAAkACQAAAAjAAMAAAAlABMAAAAiAAEAAAAlABsAAAAiAAEAAAAlACUAAAAjAAMAAAAmACYAAAAhAAMAAAAnACMAAAAiAAIAAAAnACUAAAAjAAMAAAAnACcAAAAiAAIAAAAoABAAAAAdAAEAAAAoABMAAAAjAAEAAAAoACMAAAAiAAMAAAAoACYAAAAhAAMAAAApAAQAAAAhAAMAAAApABEAAAAiAAMAAAApACMAAAAiAAMAAAApACcAAAAiAAEAAAAqAAkAAAAhAAMAAAAqAA8AAAAgAAQAAAAqABAAAAAiAAMAAAAqACQAAAAjAAMAAAAqACUAAAAiAAIAAAArAAcAAAAbAAEAAAArAAwAAAAjAAIAAAArACUAAAAhAAMAAAAsAAUAAAAjAAMAAAAsAAoAAAAiAAEAAAAsAA4AAAAhAAMAAAAsACQAAAAgAAQAAAAtAA8AAAAjAAMAAAAvAA0AAAAjAAEAAAAwAAcAAAAjAAMAAAAwAAgAAAAjAAEAAAAwAAkAAAAiAAMAAAAxAAYAAAAiAAMAAAAxAAgAAAAiAAIAAAAxACQAAAAgAAQAAAAxACcAAAAeAAEAAAAyAAUAAAAiAAIAAAAyAAYAAAAiAAEAAAAyAAcAAAAjAAMAAAAyAAgAAAAjAAMAAAAyAAkAAAAjAAEAAAAyAAoAAAAiAAIAAAAyACYAAAAiAAEAAAAzAAYAAAAiAAMAAAAzAAcAAAAiAAMAAAAzAAgAAAAjAAEAAAAzAAkAAAAjAAIAAAAzAAoAAAAjAAMAAAAzABkAAAAiAAEAAAA0AAgAAAAiAAEAAAA0AAkAAAAiAAEAAAA0AB0AAAAhAAMAAAA0ACAAAAAjAAEAAAA0ACEAAAAjAAMAAAA1AAgAAAAjAAIAAAA1ABQAAAAcAAEAAAA1ABwAAAAjAAEAAAA1AB4AAAAiAAIAAAA1AB8AAAAhAAMAAAA2ABMAAAAiAAIAAAA2ABsAAAAcAAEAAAA2AB8AAAAjAAIAAAA3AB4AAAAiAAIAAAA4AA0AAAAdAAEAAAA4ACcAAAAcAAEAAAA5AAoAAAAiAAMAAAA5ABIAAAAgAAQAAAA6AAkAAAAfAAQAAAA6AAwAAAAgAAQAAAA6ABAAAAAbAAEAAAA6AB8AAAAcAAEAAAA7ABkAAAAjAAIAAAA=")
+tile_set = ExtResource("1_ground")
+
+[node name="Verges" type="Node2D" parent="."]
+z_index = 4
+
+[node name="Tuft_001" type="Sprite2D" parent="Verges"]
+position = Vector2(82, 342)
+texture = ExtResource("tuft_0")
+centered = false
+
+[node name="Tuft_002" type="Sprite2D" parent="Verges"]
+position = Vector2(100, 349)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_003" type="Sprite2D" parent="Verges"]
+position = Vector2(168, 402)
+texture = ExtResource("tuft_1")
+centered = false
+
+[node name="Tuft_004" type="Sprite2D" parent="Verges"]
+position = Vector2(196, 349)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_005" type="Sprite2D" parent="Verges"]
+position = Vector2(231, 348)
+texture = ExtResource("tuft_2")
+centered = false
+
+[node name="Tuft_006" type="Sprite2D" parent="Verges"]
+position = Vector2(244, 346)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_007" type="Sprite2D" parent="Verges"]
+position = Vector2(294, 343)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_008" type="Sprite2D" parent="Verges"]
+position = Vector2(340, 348)
+texture = ExtResource("tuft_0")
+centered = false
+
+[node name="Tuft_009" type="Sprite2D" parent="Verges"]
+position = Vector2(348, 293)
+texture = ExtResource("tuft_2")
+centered = false
+flip_h = true
+
+[node name="Tuft_010" type="Sprite2D" parent="Verges"]
+position = Vector2(370, 302)
+texture = ExtResource("tuft_0")
+centered = false
+
+[node name="Tuft_011" type="Sprite2D" parent="Verges"]
+position = Vector2(392, 343)
+texture = ExtResource("tuft_1")
+centered = false
+
+[node name="Tuft_012" type="Sprite2D" parent="Verges"]
+position = Vector2(397, 325)
+texture = ExtResource("tuft_2")
+centered = false
+flip_h = true
+
+[node name="Tuft_013" type="Sprite2D" parent="Verges"]
+position = Vector2(445, 309)
+texture = ExtResource("tuft_2")
+centered = false
+
+[node name="Tuft_014" type="Sprite2D" parent="Verges"]
+position = Vector2(438, 325)
+texture = ExtResource("tuft_0")
+centered = false
+
+[node name="Tuft_015" type="Sprite2D" parent="Verges"]
+position = Vector2(439, 403)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_016" type="Sprite2D" parent="Verges"]
+position = Vector2(452, 305)
+texture = ExtResource("tuft_2")
+centered = false
+
+[node name="Tuft_017" type="Sprite2D" parent="Verges"]
+position = Vector2(445, 405)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_018" type="Sprite2D" parent="Verges"]
+position = Vector2(490, 245)
+texture = ExtResource("tuft_2")
+centered = false
+flip_h = true
+
+[node name="Tuft_019" type="Sprite2D" parent="Verges"]
+position = Vector2(502, 344)
+texture = ExtResource("tuft_2")
+centered = false
+flip_h = true
+
+[node name="Tuft_020" type="Sprite2D" parent="Verges"]
+position = Vector2(499, 428)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_021" type="Sprite2D" parent="Verges"]
+position = Vector2(530, 343)
+texture = ExtResource("tuft_0")
+centered = false
+
+[node name="Tuft_022" type="Sprite2D" parent="Verges"]
+position = Vector2(541, 421)
+texture = ExtResource("tuft_0")
+centered = false
+flip_h = true
+
+[node name="Tuft_023" type="Sprite2D" parent="Verges"]
+position = Vector2(565, 342)
+texture = ExtResource("tuft_2")
+centered = false
+
+[node name="Tuft_024" type="Sprite2D" parent="Verges"]
+position = Vector2(581, 399)
+texture = ExtResource("tuft_0")
+centered = false
+flip_h = true
+
+[node name="Tuft_025" type="Sprite2D" parent="Verges"]
+position = Vector2(598, 396)
+texture = ExtResource("tuft_0")
+centered = false
+
+[node name="Tuft_026" type="Sprite2D" parent="Verges"]
+position = Vector2(629, 400)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_027" type="Sprite2D" parent="Verges"]
+position = Vector2(755, 397)
+texture = ExtResource("tuft_1")
+centered = false
+
+[node name="Tuft_028" type="Sprite2D" parent="Verges"]
+position = Vector2(822, 261)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Tuft_029" type="Sprite2D" parent="Verges"]
+position = Vector2(825, 277)
+texture = ExtResource("tuft_2")
+centered = false
+flip_h = true
+
+[node name="Tuft_030" type="Sprite2D" parent="Verges"]
+position = Vector2(866, 347)
+texture = ExtResource("tuft_0")
+centered = false
+
+[node name="Tuft_031" type="Sprite2D" parent="Verges"]
+position = Vector2(884, 401)
+texture = ExtResource("tuft_2")
+centered = false
+
+[node name="Tuft_032" type="Sprite2D" parent="Verges"]
+position = Vector2(911, 357)
+texture = ExtResource("tuft_1")
+centered = false
+flip_h = true
+
+[node name="Cliff" type="StaticBody2D" parent="."]
+z_index = 10
+
+[node name="Sprite" type="Sprite2D" parent="Cliff"]
+texture = ExtResource("4_cliff")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Cliff"]
+position = Vector2(480, 28)
+shape = SubResource("Shape_3")
+
+[node name="Pond" type="StaticBody2D" parent="."]
+z_index = 2
+position = Vector2(640, 416)
+
+[node name="Sprite" type="Sprite2D" parent="Pond"]
+texture = ExtResource("16_pond")
+centered = false
+
+[node name="Bank_01" type="CollisionShape2D" parent="Pond"]
+position = Vector2(88, 4)
+shape = SubResource("Shape_14")
+
+[node name="Bank_02" type="CollisionShape2D" parent="Pond"]
+position = Vector2(92, 12)
+shape = SubResource("Shape_15")
+
+[node name="Bank_03" type="CollisionShape2D" parent="Pond"]
+position = Vector2(100, 20)
+shape = SubResource("Shape_16")
+
+[node name="Bank_04" type="CollisionShape2D" parent="Pond"]
+position = Vector2(104, 28)
+shape = SubResource("Shape_17")
+
+[node name="Bank_05" type="CollisionShape2D" parent="Pond"]
+position = Vector2(104, 36)
+shape = SubResource("Shape_18")
+
+[node name="Bank_06" type="CollisionShape2D" parent="Pond"]
+position = Vector2(104, 52)
+shape = SubResource("Shape_19")
+
+[node name="Bank_07" type="CollisionShape2D" parent="Pond"]
+position = Vector2(108, 76)
+shape = SubResource("Shape_20")
+
+[node name="Bank_08" type="CollisionShape2D" parent="Pond"]
+position = Vector2(104, 96)
+shape = SubResource("Shape_21")
+
+[node name="Bank_09" type="CollisionShape2D" parent="Pond"]
+position = Vector2(104, 108)
+shape = SubResource("Shape_22")
+
+[node name="Bank_10" type="CollisionShape2D" parent="Pond"]
+position = Vector2(100, 116)
+shape = SubResource("Shape_23")
+
+[node name="Bank_11" type="CollisionShape2D" parent="Pond"]
+position = Vector2(100, 124)
+shape = SubResource("Shape_24")
+
+[node name="Bank_12" type="CollisionShape2D" parent="Pond"]
+position = Vector2(96, 132)
+shape = SubResource("Shape_25")
+
+[node name="FarmFence" type="Node2D" parent="."]
+position = Vector2(176, 400)
+
+[node name="n_w" type="Sprite2D" parent="FarmFence"]
+z_index = 10
+texture = ExtResource("18_fence_n_w")
+centered = false
+
+[node name="n_e" type="Sprite2D" parent="FarmFence"]
+z_index = 10
+position = Vector2(128, 0)
+texture = ExtResource("18_fence_n_e")
+centered = false
+
+[node name="s" type="Sprite2D" parent="FarmFence"]
+z_index = 10
+position = Vector2(0, 144)
+texture = ExtResource("18_fence_s")
+centered = false
+
+[node name="w_t" type="Sprite2D" parent="FarmFence"]
+z_index = 10
+texture = ExtResource("18_fence_w_t")
+centered = false
+
+[node name="w_b" type="Sprite2D" parent="FarmFence"]
+z_index = 10
+position = Vector2(0, 80)
+texture = ExtResource("18_fence_w_b")
+centered = false
+
+[node name="e_t" type="Sprite2D" parent="FarmFence"]
+z_index = 10
+position = Vector2(208, 0)
+texture = ExtResource("18_fence_e_t")
+centered = false
+
+[node name="e_b" type="Sprite2D" parent="FarmFence"]
+z_index = 10
+position = Vector2(208, 80)
+texture = ExtResource("18_fence_e_b")
+centered = false
+
+[node name="Rails" type="StaticBody2D" parent="FarmFence"]
+
+[node name="Rail_01" type="CollisionShape2D" parent="FarmFence/Rails"]
+position = Vector2(48, 8)
+shape = SubResource("Shape_26")
+
+[node name="Rail_02" type="CollisionShape2D" parent="FarmFence/Rails"]
+position = Vector2(176, 8)
+shape = SubResource("Shape_27")
+
+[node name="Rail_03" type="CollisionShape2D" parent="FarmFence/Rails"]
+position = Vector2(112, 152)
+shape = SubResource("Shape_28")
+
+[node name="Rail_04" type="CollisionShape2D" parent="FarmFence/Rails"]
+position = Vector2(8, 80)
+shape = SubResource("Shape_29")
+
+[node name="Rail_05" type="CollisionShape2D" parent="FarmFence/Rails"]
+position = Vector2(216, 80)
+shape = SubResource("Shape_30")
+
+[node name="House" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(424, 224)
+
+[node name="Sprite" type="Sprite2D" parent="House"]
+position = Vector2(-56, -112)
+texture = ExtResource("3_house")
+centered = false
+
+[node name="WallLeft" type="CollisionShape2D" parent="House"]
+position = Vector2(-31.5, -27)
+shape = SubResource("Shape_1")
+
+[node name="WallRight" type="CollisionShape2D" parent="House"]
+position = Vector2(31.5, -27)
+shape = SubResource("Shape_2")
+
+[node name="Tree_01" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(-16, 74)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_01"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_01"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_02" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(96, 70)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_02"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_02"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_03" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(112, 80)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_03"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_03"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_04" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(160, 81)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_04"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_04"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_05" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(240, 79)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_05"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_05"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_06" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(288, 66)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_06"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_06"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_07" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(304, 64)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_07"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_07"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_08" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(368, 78)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_08"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_08"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_09" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(384, 64)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_09"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_09"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_10" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(416, 69)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_10"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_10"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_11" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(528, 74)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_11"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_11"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_12" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(528, 79)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_12"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_12"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_13" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(624, 69)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_13"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_13"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_14" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(608, 78)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_14"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_14"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_15" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(688, 68)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_15"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_15"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_16" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(704, 77)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_16"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_16"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_17" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(768, 69)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_17"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_17"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_18" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(800, 76)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_18"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_18"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_19" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(912, 82)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_19"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_19"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_20" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(944, 73)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_20"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_20"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_21" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(48, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_21"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_21"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_22" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(96, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_22"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_22"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_23" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(176, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_23"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_23"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_24" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(208, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_24"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_24"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_25" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(272, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_25"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_25"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_26" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(336, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_26"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_26"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_27" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(384, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_27"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_27"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_28" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(496, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_28"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_28"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_29" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(544, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_29"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_29"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_30" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(624, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_30"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_30"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_31" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(640, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_31"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_31"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_32" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(752, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_32"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_32"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_33" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(816, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_33"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_33"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_34" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(880, 608)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_34"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_34"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_35" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(16, 116)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_35"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_35"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_36" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(928, 115)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_36"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_36"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_37" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(16, 181)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_37"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_37"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_38" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(928, 181)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_38"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_38"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_39" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(16, 242)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_39"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_39"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_40" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(928, 248)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_40"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_40"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_41" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(16, 305)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_41"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_41"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_42" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(928, 312)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_42"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_42"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_43" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(16, 371)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_43"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_43"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_44" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(928, 377)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_44"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_44"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_45" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(16, 433)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_45"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_45"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_46" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(928, 440)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_46"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_46"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_47" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(16, 497)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_47"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_47"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_48" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(928, 507)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_48"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_48"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_49" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(16, 569)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_49"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_49"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_50" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(928, 562)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_50"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_50"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_51" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(144, 112)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_51"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_51"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_52" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(688, 80)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_52"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_52"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_53" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(768, 112)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_53"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_53"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_54" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(848, 80)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_54"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_54"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_55" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(80, 160)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_55"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_55"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_56" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(688, 176)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_56"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_56"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_57" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(144, 208)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_57"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_57"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_58" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(560, 224)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_58"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_58"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_59" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(624, 240)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_59"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_59"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_60" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(848, 224)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_60"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_60"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_61" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(80, 272)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_61"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_61"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_62" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(880, 288)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_62"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 2
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_62"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_63" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(448, 464)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_63"]
+position = Vector2(0, -39)
+script = ExtResource("15_propanim")
+sheet = ExtResource("6_tree_pine")
+fps = 4.0
+frame_size = Vector2i(28, 43)
+start_frame = 3
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_63"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_5")
+
+[node name="Tree_64" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(528, 464)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_64"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_64"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Tree_65" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(464, 528)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Tree_65"]
+position = Vector2(0, -30)
+script = ExtResource("15_propanim")
+sheet = ExtResource("5_tree_round")
+fps = 5.0
+frame_size = Vector2i(32, 34)
+start_frame = 1
+
+[node name="Trunk" type="CollisionShape2D" parent="Tree_65"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_4")
+
+[node name="Crate_1" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(504, 200)
+
+[node name="Sprite" type="Sprite2D" parent="Crate_1"]
+position = Vector2(-8, -17)
+texture = ExtResource("7_crate")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Crate_1"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="Crate_2" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(520, 200)
+
+[node name="Sprite" type="Sprite2D" parent="Crate_2"]
+position = Vector2(-8, -17)
+texture = ExtResource("7_crate")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Crate_2"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="CrateStack_1" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(504, 180)
+
+[node name="Sprite" type="Sprite2D" parent="CrateStack_1"]
+position = Vector2(-10, -24)
+texture = ExtResource("8_crate_stack")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="CrateStack_1"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="Crate_3" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(296, 308)
+
+[node name="Sprite" type="Sprite2D" parent="Crate_3"]
+position = Vector2(-8, -17)
+texture = ExtResource("7_crate")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Crate_3"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="Crate_4" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(312, 308)
+
+[node name="Sprite" type="Sprite2D" parent="Crate_4"]
+position = Vector2(-8, -17)
+texture = ExtResource("7_crate")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Crate_4"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="Stump_1" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(104, 276)
+
+[node name="Sprite" type="Sprite2D" parent="Stump_1"]
+position = Vector2(-6, -16)
+texture = ExtResource("9_stump")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Stump_1"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="Stump_2" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(664, 212)
+
+[node name="Sprite" type="Sprite2D" parent="Stump_2"]
+position = Vector2(-6, -16)
+texture = ExtResource("9_stump")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Stump_2"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="Stump_3" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(856, 324)
+
+[node name="Sprite" type="Sprite2D" parent="Stump_3"]
+position = Vector2(-6, -16)
+texture = ExtResource("9_stump")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Stump_3"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="Stump_4" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(248, 580)
+
+[node name="Sprite" type="Sprite2D" parent="Stump_4"]
+position = Vector2(-6, -16)
+texture = ExtResource("9_stump")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="Stump_4"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_6")
+
+[node name="Boulder_1" type="Sprite2D" parent="."]
+z_index = 9
+position = Vector2(160, 77)
+texture = ExtResource("10_boulder")
+centered = false
+
+[node name="Boulder_2" type="Sprite2D" parent="."]
+z_index = 9
+position = Vector2(528, 79)
+texture = ExtResource("10_boulder")
+centered = false
+
+[node name="Boulder_3" type="Sprite2D" parent="."]
+z_index = 9
+position = Vector2(832, 75)
+texture = ExtResource("10_boulder")
+centered = false
+
+[node name="Crop_carrot_01" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(232, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_carrot_02" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(248, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_carrot_03" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(264, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_carrot_04" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(280, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_carrot_05" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(296, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_carrot_06" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(312, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_carrot_07" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(328, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_carrot_08" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(344, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_carrot_09" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(360, 444)
+texture = ExtResource("crop_carrot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_cabbage_00" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(216, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_cabbage_01" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(232, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_cabbage_02" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(248, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_cabbage_03" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(264, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_cabbage_04" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(280, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_cabbage_05" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(296, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_cabbage_07" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(328, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_cabbage_08" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(344, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_cabbage_09" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(360, 476)
+texture = ExtResource("crop_cabbage_3")
+offset = Vector2(0, -5)
+
+[node name="Crop_beetroot_00" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(216, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_beetroot_02" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(248, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_beetroot_03" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(264, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_beetroot_04" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(280, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_beetroot_05" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(296, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_beetroot_06" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(312, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_beetroot_07" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(328, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_beetroot_08" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(344, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_beetroot_09" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(360, 508)
+texture = ExtResource("crop_beetroot_4")
+offset = Vector2(0, -7)
+
+[node name="Crop_radish_00" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(216, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="Crop_radish_01" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(232, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="Crop_radish_02" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(248, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="Crop_radish_03" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(264, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="Crop_radish_04" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(280, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="Crop_radish_05" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(296, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="Crop_radish_06" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(312, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="Crop_radish_08" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(344, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="Crop_radish_09" type="Sprite2D" parent="."]
+z_index = 5
+position = Vector2(360, 540)
+texture = ExtResource("crop_radish_1")
+offset = Vector2(0, -3)
+
+[node name="ShippingBin" type="StaticBody2D" parent="."]
+z_index = 10
+position = Vector2(472, 432)
+
+[node name="Sprite" type="Sprite2D" parent="ShippingBin"]
+position = Vector2(-8, -16)
+texture = ExtResource("13_bin")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="ShippingBin"]
+position = Vector2(0, -8)
+shape = SubResource("Shape_7")
+
+[node name="MarketStall" type="StaticBody2D" parent="."]
+z_index = 11
+position = Vector2(748, 336)
+
+[node name="Sprite" type="Sprite2D" parent="MarketStall"]
+position = Vector2(-36, -64)
+texture = ExtResource("13b_stall")
+centered = false
+
+[node name="Body" type="CollisionShape2D" parent="MarketStall"]
+position = Vector2(0, -10)
+shape = SubResource("Shape_9")
+
+[node name="Merchant" type="StaticBody2D" parent="."]
+z_index = 9
+position = Vector2(748, 312)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Merchant"]
+position = Vector2(0, -6)
+script = ExtResource("15_propanim")
+sheet = ExtResource("12_npc")
+frame_count = 9
+fps = 6.0
+frame_size = Vector2i(96, 64)
+
+[node name="Body" type="CollisionShape2D" parent="Merchant"]
+position = Vector2(0, -4)
+shape = SubResource("Shape_8")
+
+[node name="Zones" type="Node2D" parent="."]
+
+[node name="DoorZone" type="Area2D" parent="Zones"]
+position = Vector2(424, 234)
+metadata/interaction = "sleep"
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/DoorZone"]
+shape = SubResource("Shape_10")
+
+[node name="ShippingBinZone" type="Area2D" parent="Zones"]
+position = Vector2(472, 422)
+metadata/interaction = "ship"
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/ShippingBinZone"]
+shape = SubResource("Shape_11")
+
+[node name="MerchantZone" type="Area2D" parent="Zones"]
+position = Vector2(748, 350)
+metadata/interaction = "shop"
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/MerchantZone"]
+shape = SubResource("Shape_12")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+z_index = 10
+position = Vector2(424, 270)
+script = ExtResource("14_player")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Player"]
+
+[node name="Hair" type="AnimatedSprite2D" parent="Player"]
+
+[node name="Collision" type="CollisionShape2D" parent="Player"]
+position = Vector2(0, -3)
+shape = SubResource("Shape_13")
+
+[node name="Camera" type="Camera2D" parent="Player"]
+position = Vector2(0, -24)
+limit_left = 0
+limit_top = 0
+limit_right = 960
+limit_bottom = 640
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
