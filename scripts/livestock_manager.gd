@@ -184,6 +184,7 @@ func try_interact() -> bool:
 			a["product"] = 0
 			a["pause"] = 0.6
 			_emote(a, 4)
+			SfxPlayer.play("pet")
 			if game != null and game.hud != null:
 				game.hud.toast("+1 %s dari %s" % [label, String(a["name"])], 1.6)
 			GameState.quest_event(String(a["id"]), 1)
@@ -192,6 +193,7 @@ func try_interact() -> bool:
 				game.hud.toast("Tas penuh! Jual hasil panen dulu.")
 		return true
 
+	SfxPlayer.play("pet")
 	if not bool(a["tended"]):
 		a["tended"] = true
 		_emote(a, 3)

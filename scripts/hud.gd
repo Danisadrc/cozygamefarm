@@ -130,8 +130,15 @@ var _fish_cb: Callable
 const FISH_TRACK_W := 68.0
 const FISH_SPEED := 1.15
 
+# Pause menu (Esc)
+var _pause_root: Control
+var _pause_clock: Label
+
 
 func _ready() -> void:
+	# The HUD keeps running while the tree is paused: it owns the pause menu,
+	# so it has to be able to un-pause itself.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 10
 	_prepare_bar_textures()
 	_build_top_bar()
@@ -144,6 +151,7 @@ func _ready() -> void:
 	_build_toast()
 	_build_fade()
 	_build_fishing()
+	_build_pause()
 	GameState.gold_changed.connect(_on_gold_signal)
 	GameState.inventory_changed.connect(_on_inventory_signal)
 	GameState.day_changed.connect(_on_day_signal)
@@ -775,6 +783,142 @@ func _build_fishing() -> void:
 	_fish_root.add_child(hint)
 
 
+# ------------------------------------------------------------------ pause menu
+
+func _build_pause() -> void:
+	_pause_root = Control.new()
+	_pause_root.name = "PauseMenu"
+	_pause_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pause_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_root.visible = false
+	add_child(_pause_root)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.04, 0.03, 0.02, 0.66)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_root.add_child(dim)
+
+	# Sunnyside dark-wood 9-slice panel, same art as the shop and dialogue.
+	var panel := _make_box("dt_", Vector2(300, 208))
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -150
+	panel.offset_right = 150
+	panel.offset_top = -104
+	panel.offset_bottom = 104
+	_pause_root.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 14)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 6)
+	margin.add_child(box)
+
+	var title := _label("Jeda", 20, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_outline(title, 4)
+	box.add_child(title)
+
+	_pause_clock = _label("Hari 1 • 06:00", 10, MUTED)
+	_pause_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_outline(_pause_clock, 3)
+	box.add_child(_pause_clock)
+
+	var sep := HSeparator.new()
+	box.add_child(sep)
+
+	box.add_child(_pause_button("Lanjutkan", _on_pause_resume))
+	box.add_child(_pause_button("Menu Utama", _on_pause_menu))
+	box.add_child(_pause_button("Keluar", _on_pause_quit))
+
+
+func _pause_button(text: String, on_press: Callable) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(0, 26)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.add_theme_font_size_override("font_size", 11)
+	btn.add_theme_color_override("font_color", CREAM)
+	btn.add_theme_color_override("font_hover_color", Color(1, 1, 1))
+	btn.add_theme_color_override("font_pressed_color", Color(0.2, 0.14, 0.08))
+	btn.add_theme_color_override("font_outline_color", OUTLINE)
+	btn.add_theme_constant_override("outline_size", 3)
+	btn.add_theme_stylebox_override("normal", _button_box("lt_"))
+	btn.add_theme_stylebox_override("hover", _button_box("w_"))
+	btn.add_theme_stylebox_override("pressed", _button_box("dt_"))
+	btn.pressed.connect(on_press)
+	return btn
+
+
+## Esc: close the pause menu, or open it when nothing else is on screen.
+## Other overlays (dialogue, shop, confirm, fishing) handle Esc themselves, so
+## this returns without consuming the key for them.
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key := event as InputEventKey
+	if not key.pressed or key.echo or key.keycode != KEY_ESCAPE:
+		return
+	if is_pause_open():
+		resume_game()
+		get_viewport().set_input_as_handled()
+		return
+	if is_any_overlay_open():
+		return
+	pause_game()
+	get_viewport().set_input_as_handled()
+
+
+func is_any_overlay_open() -> bool:
+	return is_confirm_open() or is_dialogue_open() or is_quest_complete_open() \
+		or is_shop_open() or is_fishing()
+
+
+func is_shop_open() -> bool:
+	return _shop_root != null and _shop_root.visible
+
+
+func is_pause_open() -> bool:
+	return _pause_root != null and _pause_root.visible
+
+
+func pause_game() -> void:
+	if _pause_root == null:
+		return
+	hide_prompt()
+	if _pause_clock != null:
+		_pause_clock.text = "Hari %d • %s" % [GameState.day, GameState.time_string()]
+	_pause_root.visible = true
+	get_tree().paused = true
+
+
+func resume_game() -> void:
+	if _pause_root != null:
+		_pause_root.visible = false
+	get_tree().paused = false
+
+
+func _on_pause_resume() -> void:
+	resume_game()
+
+
+func _on_pause_menu() -> void:
+	get_tree().paused = false
+	if _pause_root != null:
+		_pause_root.visible = false
+	get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
+
+
+func _on_pause_quit() -> void:
+	get_tree().quit()
+
+
 func _build_shop_rows() -> void:
 	for child in _shop_rows.get_children():
 		child.queue_free()
@@ -1286,6 +1430,22 @@ func _make_box(prefix: String, min_size: Vector2) -> NinePatchRect:
 	np.custom_minimum_size = min_size
 	np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	return np
+
+
+## The same 9-slice art as a StyleBoxTexture, for buttons that should match the
+## panels around them.
+func _button_box(prefix: String) -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = _compose_box(prefix)
+	style.texture_margin_left = 3
+	style.texture_margin_top = 3
+	style.texture_margin_right = 3
+	style.texture_margin_bottom = 3
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
+	return style
 
 
 func _icon(tex: Texture2D, size_px: int, exact := false) -> TextureRect:

@@ -419,6 +419,7 @@ func _on_quests_done() -> void:
 	busy = true
 	if player != null:
 		player.input_locked = true
+	SfxPlayer.play("catch")
 	hud.hide_prompt()
 	hud.show_quest_complete(GameState.day, GameState.gold, _resume_free_play)
 
@@ -445,11 +446,23 @@ func use_tool(cell: Vector2i) -> void:
 		return
 	# Soil work: pay stamina only when the action really changes a tile.
 	var is_soil_tool := tool == "hoe" or tool == "water"
-	if is_soil_tool and not farm._is_mature(cell) and farm.can_use(cell, item):
+	var acted: bool = farm.can_use(cell, item)
+	if is_soil_tool and not farm._is_mature(cell) and acted:
 		if not _spend_stamina(5):
 			return
 	farm.use_tool(cell, item)
+	if acted:
+		_play_soil_sfx(item, tool)
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+
+
+## Cangkul -> hit, siram -> water, tanam -> water.
+func _play_soil_sfx(item: Dictionary, tool: String) -> void:
+	match String(item.get("type", "")):
+		"seed":
+			SfxPlayer.play("water")
+		"tool":
+			SfxPlayer.play("water" if tool == "water" else "hit")
 
 
 func mouse_action(mouse_world: Vector2) -> void:
@@ -664,6 +677,7 @@ func _hit_resource_near(tool: String) -> void:
 		return
 	if player != null and player.has_method("play_action"):
 		player.play_action("mining" if want == "boulder" else "axe")
+	SfxPlayer.play("hit")
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
 	_hit_resource(best, want)
 
@@ -808,6 +822,7 @@ func _on_fish_result(success: bool) -> void:
 		player.input_locked = false
 	if success:
 		if GameState.add_item("fish", "Ikan"):
+			SfxPlayer.play("catch")
 			hud.toast("Dapat ikan! Jual di Shipping Bin atau makan (F).", 2.2)
 			GameState.quest_event("fish", 1)
 			if player != null and player.has_method("play_action"):
@@ -831,6 +846,7 @@ func _sell_all() -> void:
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
 	hud.pop_gold(total)
 	hud.toast("Menjual hasil panen: +%d G" % total, 2.6)
+	SfxPlayer.play("coin")
 
 
 func _open_shop() -> void:
@@ -869,6 +885,7 @@ func buy_seed(id: String) -> void:
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
 	hud.refresh_shop(GameState.gold)
 	hud.toast("Bibit %s +1  (-%d G)" % [DataRegistry.crop_seed_name(id), price], 1.8)
+	SfxPlayer.play("coin")
 
 
 # ================================================================ lighting

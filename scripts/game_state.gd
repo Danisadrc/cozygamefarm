@@ -77,20 +77,27 @@ var stamina := MAX_STAMINA
 #   tool slot:    {"type": "tool", "tool": "hoe"|"water", "name": "Cangkul", "count": 0}
 #   seed slot:    {"type": "seed", "crop": "<id>", "name": "...", "count": N}
 #   produce slot: {"type": "produce", "crop": "<id>", "name": "...", "count": N}
-var hotbar: Array[Dictionary] = [
-	{"type": "tool", "tool": "hoe",     "name": "Cangkul",   "count": 0},
-	{"type": "tool", "tool": "water",   "name": "Penyiram",  "count": 0},
-	{"type": "tool", "tool": "axe",     "name": "Kapak",     "count": 0},
-	{"type": "tool", "tool": "pickaxe", "name": "Beliung",   "count": 0},
-	{"type": "tool", "tool": "rod",     "name": "Pancingan", "count": 0},
-	{"type": "seed", "crop": "carrot", "name": "Bibit Wortel",  "count": 5},
-	{"type": "seed", "crop": "potato", "name": "Bibit Kentang", "count": 5},
-	{"type": "produce", "crop": "", "name": "", "count": 0},
-	{"type": "produce", "crop": "", "name": "", "count": 0},
-	{"type": "produce", "crop": "", "name": "", "count": 0},
-]
+var hotbar: Array[Dictionary] = _default_hotbar()
 
 var selected_slot := 0
+
+
+## The ten starting slots: five tools, five carrot/potato seeds, three empty
+## produce slots. Built by a function so reset() can hand out a fresh copy.
+func _default_hotbar() -> Array[Dictionary]:
+	var slots: Array[Dictionary] = [
+		{"type": "tool", "tool": "hoe",     "name": "Cangkul",   "count": 0},
+		{"type": "tool", "tool": "water",   "name": "Penyiram",  "count": 0},
+		{"type": "tool", "tool": "axe",     "name": "Kapak",     "count": 0},
+		{"type": "tool", "tool": "pickaxe", "name": "Beliung",   "count": 0},
+		{"type": "tool", "tool": "rod",     "name": "Pancingan", "count": 0},
+		{"type": "seed", "crop": "carrot", "name": "Bibit Wortel",  "count": 5},
+		{"type": "seed", "crop": "potato", "name": "Bibit Kentang", "count": 5},
+		{"type": "produce", "crop": "", "name": "", "count": 0},
+		{"type": "produce", "crop": "", "name": "", "count": 0},
+		{"type": "produce", "crop": "", "name": "", "count": 0},
+	]
+	return slots
 
 
 # ------------------------------------------------------------------ lifecycle
@@ -102,6 +109,36 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_advance_time(delta)
+
+
+## Put a brand-new game back on the table: starting gold / day / 06:00 clock /
+## full stamina, the ten default hotbar slots, and quest 1 of 3 untouched.
+## Called by the title screen's "Mulai Bermain" button, and safe to call at any
+## point because every value is replaced rather than adjusted.
+func reset() -> void:
+	gold = START_GOLD
+	day = 1
+	hour = 6
+	minute = 0
+	_minute_accum = 0.0
+	time_scale = 1.0
+	stamina = MAX_STAMINA
+	selected_slot = 0
+	hotbar = _default_hotbar()
+
+	quest_index = 0
+	quest_done = false
+	quest_counts.clear()
+	_quest_checking = false
+
+	# Tell any live UI (the HUD survives a scene change only in theory, but a
+	# reset from inside the world should still repaint everything).
+	gold_changed.emit(gold)
+	day_changed.emit(day)
+	hour_changed.emit(hour)
+	stamina_changed.emit(stamina)
+	inventory_changed.emit()
+	quest_changed.emit()
 
 
 # ------------------------------------------------------------------ time API
