@@ -113,6 +113,26 @@ func use_tool(cell: Vector2i, item: Dictionary) -> void:
 			harvest(cell)
 
 
+## True when use_tool(cell, item) would actually change the farm state.
+## world_game.gd uses this to charge stamina only for real work.
+func can_use(cell: Vector2i, item: Dictionary) -> bool:
+	if soil == null or soil.get_cell_source_id(cell) == -1:
+		return false
+	if _is_mature(cell) and String(item.get("type", "")) != "seed":
+		return true
+	match String(item.get("type", "")):
+		"tool":
+			if String(item.get("tool", "")) == "hoe":
+				return not _is_tilled(cell)
+			return _is_tilled(cell) and not _is_watered(cell)
+		"seed":
+			return _is_tilled(cell) and _crop_id(cell) == "" \
+				and int(item.get("count", 0)) > 0
+		"produce":
+			return _crop_id(cell) != ""
+	return false
+
+
 # ================================================================ actions
 
 func till(cell: Vector2i) -> void:

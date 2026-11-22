@@ -10,9 +10,13 @@ signal gold_changed(new_gold: int)
 signal day_changed(new_day: int)
 signal hour_changed(new_hour: int)
 signal inventory_changed
+signal stamina_changed(new_stamina: int)
 
 const START_GOLD := 100
-const MAX_SLOTS := 8
+const MAX_SLOTS := 10
+const MAX_STAMINA := 100
+const ITEM_START := 5   # slots 0..4 hold tools; 5.. hold items (seeds / produce / materials)
+const ITEM_PRICES := {"fish": 25, "wood": 8, "rock": 6, "egg": 15}
 
 # ------------------------------------------------------------------ time
 
@@ -29,6 +33,7 @@ var _minute_accum := 0.0
 # ------------------------------------------------------------------ economy
 
 var gold := START_GOLD
+var stamina := MAX_STAMINA
 
 # ------------------------------------------------------------------ inventory
 # Each slot is a Dictionary:
@@ -36,12 +41,14 @@ var gold := START_GOLD
 #   seed slot:    {"type": "seed", "crop": "<id>", "name": "...", "count": N}
 #   produce slot: {"type": "produce", "crop": "<id>", "name": "...", "count": N}
 var hotbar: Array[Dictionary] = [
-	{"type": "tool", "tool": "hoe",   "name": "Cangkul",  "count": 0},
-	{"type": "tool", "tool": "water", "name": "Penyiram", "count": 0},
-	{"type": "seed", "crop": "carrot",    "name": "Bibit Wortel",   "count": 5},
-	{"type": "seed", "crop": "potato",    "name": "Bibit Kentang",  "count": 5},
-	{"type": "seed", "crop": "beetroot",  "name": "Bibit Bit",      "count": 5},
-	{"type": "seed", "crop": "cabbage",   "name": "Bibit Kubis",    "count": 5},
+	{"type": "tool", "tool": "hoe",     "name": "Cangkul",   "count": 0},
+	{"type": "tool", "tool": "water",   "name": "Penyiram",  "count": 0},
+	{"type": "tool", "tool": "axe",     "name": "Kapak",     "count": 0},
+	{"type": "tool", "tool": "pickaxe", "name": "Beliung",   "count": 0},
+	{"type": "tool", "tool": "rod",     "name": "Pancingan", "count": 0},
+	{"type": "seed", "crop": "carrot", "name": "Bibit Wortel",  "count": 5},
+	{"type": "seed", "crop": "potato", "name": "Bibit Kentang", "count": 5},
+	{"type": "produce", "crop": "", "name": "", "count": 0},
 	{"type": "produce", "crop": "", "name": "", "count": 0},
 	{"type": "produce", "crop": "", "name": "", "count": 0},
 ]
@@ -62,16 +69,22 @@ func _process(delta: float) -> void:
 # ------------------------------------------------------------------ time API
 
 func _advance_time(delta: float) -> void:
+	# The clock stops at 23:59: a new day only starts when the player sleeps,
+	# so day_changed can never fire twice in one cycle.
+	if hour >= 23 and minute >= 59:
+		return
 	_minute_accum += delta * time_scale
 	while _minute_accum >= 1.0:
 		_minute_accum -= 1.0
 		minute += 1
 		if minute >= MINUTES_PER_HOUR:
-			minute -= MINUTES_PER_HOUR
+			minute = 0
 			hour += 1
 			if hour >= 24:
-				hour = 0
-				_next_day()
+				hour = 23
+				minute = MINUTES_PER_HOUR - 1
+				hour_changed.emit(hour)
+				break
 			hour_changed.emit(hour)
 
 
@@ -84,6 +97,7 @@ func _next_day() -> void:
 func sleep_until_morning() -> void:
 	hour = 6
 	minute = 0
+	refill_stamina()
 	_next_day()
 	hour_changed.emit(hour)
 
@@ -134,6 +148,26 @@ func spend_gold(amount: int) -> bool:
 	return true
 
 
+# ------------------------------------------------------------------ stamina
+
+func spend_stamina(amount: int) -> bool:
+	if stamina < amount:
+		return false
+	stamina -= amount
+	stamina_changed.emit(stamina)
+	return true
+
+
+func restore_stamina(amount: int) -> void:
+	stamina = mini(stamina + amount, MAX_STAMINA)
+	stamina_changed.emit(stamina)
+
+
+func refill_stamina() -> void:
+	stamina = MAX_STAMINA
+	stamina_changed.emit(stamina)
+
+
 # ------------------------------------------------------------------ inventory
 
 func select_slot(index: int) -> void:
@@ -148,16 +182,15 @@ func get_selected() -> Dictionary:
 	return hotbar[selected_slot]
 
 
-## Find a seed slot for `crop_id` with space, or create one.
+## Find a seed slot for `crop_id`, or claim the first free item slot.
 ## Returns the slot index, or -1 if no room.
 func find_or_add_seed(crop_id: String) -> int:
-	# existing seed slot of same crop
-	for i in range(2, 6):
-		if String(hotbar[i]["crop"]) == crop_id:
+	for i in range(ITEM_START, MAX_SLOTS):
+		if String(hotbar[i].get("type", "")) == "seed" and String(hotbar[i]["crop"]) == crop_id:
 			return i
-	# empty seed slot (slot 2..5) — reuse a produce slot only as last resort
-	for i in range(2, 6):
+	for i in range(ITEM_START, MAX_SLOTS):
 		if int(hotbar[i]["count"]) <= 0:
+			hotbar[i]["type"] = "seed"
 			hotbar[i]["crop"] = crop_id
 			hotbar[i]["name"] = DataRegistry.crop_seed_name(crop_id)
 			hotbar[i]["count"] = 0
@@ -165,34 +198,56 @@ func find_or_add_seed(crop_id: String) -> int:
 	return -1
 
 
-## Add produce to slots 6..7 (stackable), or first empty.
+## Add an item (produce, fish, wood, rock, egg…) to the item slots.
+## Stacks with a matching item, otherwise claims the first empty slot.
 ## Returns true if added.
-func add_produce(crop_id: String, qty: int = 1) -> bool:
-	for i in [6, 7]:
-		if String(hotbar[i]["crop"]) == crop_id and int(hotbar[i]["count"]) > 0:
-			hotbar[i]["count"] = int(hotbar[i]["count"]) + qty
+func add_item(id: String, display: String, qty: int = 1) -> bool:
+	for i in range(ITEM_START, MAX_SLOTS):
+		var it: Dictionary = hotbar[i]
+		if String(it.get("type", "")) == "produce" and String(it["crop"]) == id and int(it["count"]) > 0:
+			it["count"] = int(it["count"]) + qty
 			inventory_changed.emit()
 			return true
-	for i in [6, 7]:
-		if int(hotbar[i]["count"]) <= 0:
-			hotbar[i]["crop"] = crop_id
-			hotbar[i]["name"] = DataRegistry.crop_name(crop_id)
-			hotbar[i]["count"] = qty
+	for i in range(ITEM_START, MAX_SLOTS):
+		var it: Dictionary = hotbar[i]
+		if int(it["count"]) <= 0:
+			it["type"] = "produce"
+			it["crop"] = id
+			it["name"] = display
+			it["count"] = qty
 			inventory_changed.emit()
 			return true
 	return false
 
 
-## Sell all produce in slots 6..7. Returns gold earned.
+## Convenience wrapper used by FarmManager when harvesting a crop.
+func add_produce(crop_id: String, qty: int = 1) -> bool:
+	return add_item(crop_id, DataRegistry.crop_name(crop_id), qty)
+
+
+## Sell price for any sellable item id (crops from DataRegistry, materials/fish
+## from ITEM_PRICES).
+func sell_price(id: String) -> int:
+	var p := DataRegistry.crop_sell_price(id)
+	if p > 0:
+		return p
+	return int(ITEM_PRICES.get(id, 0))
+
+
+## Sell every produce/material item in the item slots. Returns gold earned.
 func sell_all_produce() -> int:
 	var total := 0
-	for i in [6, 7]:
+	for i in range(ITEM_START, MAX_SLOTS):
 		var item: Dictionary = hotbar[i]
 		var amount := int(item["count"])
 		if amount <= 0:
 			continue
+		if String(item.get("type", "")) != "produce":
+			continue
 		var crop := String(item["crop"])
-		total += amount * DataRegistry.crop_sell_price(crop)
+		if crop == "":
+			continue
+		total += amount * sell_price(crop)
 		item["crop"] = ""
 		item["name"] = ""
 		item["count"] = 0

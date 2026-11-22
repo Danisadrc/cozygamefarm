@@ -75,6 +75,10 @@ func _build_frames(prefix: String) -> SpriteFrames:
 	_add_anim(frames, prefix, "walk_side", "walking/%s_walk_strip8.png", 8, 9.0)
 	_add_anim(frames, prefix, "dig", "dig/%s_dig_strip13.png", 13, 18.0, false)
 	_add_anim(frames, prefix, "water", "watering/%s_watering_strip5.png", 5, 12.0, false)
+	_add_anim(frames, prefix, "axe", "axe/%s_axe_strip10.png", 10, 16.0, false)
+	_add_anim(frames, prefix, "mining", "mining/%s_mining_strip10.png", 10, 16.0, false)
+	_add_anim(frames, prefix, "casting", "casting/%s_casting_strip15.png", 15, 12.0, false)
+	_add_anim(frames, prefix, "reeling", "reeling/%s_reeling_strip13.png", 13, 14.0, false)
 	return frames
 
 
@@ -83,6 +87,10 @@ func _build_tool_frames() -> SpriteFrames:
 	frames.remove_animation("default")
 	_add_anim(frames, "tools", "dig", "dig/%s_dig_strip13.png", 13, 18.0, false)
 	_add_anim(frames, "tools", "water", "watering/%s_watering_strip5.png", 5, 12.0, false)
+	_add_anim(frames, "tools", "axe", "axe/%s_axe_strip10.png", 10, 16.0, false)
+	_add_anim(frames, "tools", "mining", "mining/%s_mining_strip10.png", 10, 16.0, false)
+	_add_anim(frames, "tools", "casting", "casting/%s_casting_strip15.png", 15, 12.0, false)
+	_add_anim(frames, "tools", "reeling", "reeling/%s_reeling_strip13.png", 13, 14.0, false)
 	return frames
 
 
@@ -170,8 +178,10 @@ func _idle_anim() -> String:
 
 
 ## Plays a one-shot farm action and freezes movement for its duration.
-func play_action(kind: String) -> void:
-	if _action_timer > 0.0:
+## `force` interrupts an action already playing (used when the fishing
+## mini-game resolves while the cast animation is still running).
+func play_action(kind: String, force := false) -> void:
+	if _action_timer > 0.0 and not force:
 		return
 	if not sprite.sprite_frames.has_animation(kind):
 		return
@@ -181,10 +191,32 @@ func play_action(kind: String) -> void:
 	sprite.play(kind)
 	hair.play(kind)
 	_tool.play(kind)
+	sprite.frame = 0
+	hair.frame = 0
+	_tool.frame = 0
 	_tool.visible = true
 	sprite.flip_h = facing.x < 0
 	hair.flip_h = sprite.flip_h
 	_tool.flip_h = sprite.flip_h
+
+
+## Turns the player towards `dir` without moving. Used by mouse targeting so
+## the swing animation always faces the tile that was clicked.
+func face(dir: Vector2i) -> void:
+	if dir == Vector2i.ZERO:
+		return
+	if absi(dir.x) >= absi(dir.y):
+		facing = Vector2i(signi(dir.x), 0)
+	else:
+		facing = Vector2i(0, signi(dir.y))
+	if _action_timer > 0.0:
+		return
+	sprite.flip_h = facing.x < 0
+	sprite.play(_idle_anim())
+	hair.flip_h = sprite.flip_h
+	hair.play(sprite.animation)
+	hair.frame = sprite.frame
+	queue_redraw()
 
 
 func _finish_action() -> void:
@@ -238,13 +270,29 @@ func front_cell() -> Vector2i:
 	return cell + facing
 
 
+## World position of the tile directly in front of the player's feet.
+## This is the single source of truth for every tool probe (hoe, water, axe,
+## pickaxe and rod) so the highlight and the hit test can never disagree.
+func target_pos() -> Vector2:
+	if _soil != null:
+		return _soil.to_global(_soil.map_to_local(front_cell()))
+	var dir := Vector2(facing) if facing != Vector2i.ZERO else Vector2.DOWN
+	return global_position + dir * float(TILE)
+
+
+## Backwards-compatible alias for target_pos().
+func front_world() -> Vector2:
+	return target_pos()
+
+
 func _draw() -> void:
 	if input_locked or _soil == null:
 		return
 	var cell := front_cell()
 	if _soil.get_cell_source_id(cell) == -1:
 		return
-	var rect := Rect2(Vector2(cell.x * TILE, cell.y * TILE) - global_position,
+	var centre := _soil.to_global(_soil.map_to_local(cell))
+	var rect := Rect2(centre - global_position - Vector2(TILE, TILE) * 0.5,
 		Vector2(TILE, TILE))
 	rect.position = rect.position.round()
 	draw_rect(rect, Color(1.0, 0.96, 0.55, 0.16), true)
@@ -253,6 +301,12 @@ func _draw() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		# The fishing mini-game must resolve even though movement is locked.
+		if _game != null and _game.has_method("is_fishing") and _game.is_fishing():
+			if event.keycode == KEY_SPACE:
+				_game.fishing_press()
+				get_viewport().set_input_as_handled()
+			return
 		if input_locked:
 			return
 		match event.keycode:
@@ -262,8 +316,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_SPACE:
 				_game.use_tool(front_cell())
 				get_viewport().set_input_as_handled()
-			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8:
+			KEY_F:
+				_game.eat_selected()
+				get_viewport().set_input_as_handled()
+			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9:
 				_game.select_slot(event.keycode - KEY_1)
+				get_viewport().set_input_as_handled()
+			KEY_0:
+				_game.select_slot(9)
 				get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed:
 		if input_locked:
