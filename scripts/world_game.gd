@@ -16,7 +16,7 @@ const VILLAGE_DECOR_SCRIPT := preload("res://scripts/village_decor.gd")
 ## separately because her zone is baked into $Zones/VillagerZone.
 const NPC_ROSTER := [
 	{
-		"name": "Pak Budi",
+		"name": "Bejo",
 		"hair": "curlyhair",
 		"pos": Vector2(520, 378),
 		"radius": 46.0,
@@ -28,7 +28,7 @@ const NPC_ROSTER := [
 		],
 	},
 	{
-		"name": "Mbak Rina",
+		"name": "Qumaini Aceh",
 		"hair": "spikeyhair",
 		"pos": Vector2(300, 376),
 		"radius": 40.0,
@@ -40,7 +40,7 @@ const NPC_ROSTER := [
 		],
 	},
 	{
-		"name": "Mas Joko",
+		"name": "Pasha",
 		"hair": "longhair",
 		"pos": Vector2(792, 380),
 		"radius": 38.0,
