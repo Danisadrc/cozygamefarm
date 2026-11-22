@@ -11,12 +11,49 @@ signal day_changed(new_day: int)
 signal hour_changed(new_hour: int)
 signal inventory_changed
 signal stamina_changed(new_stamina: int)
+signal quest_changed
+signal quests_done
 
 const START_GOLD := 100
 const MAX_SLOTS := 10
 const MAX_STAMINA := 100
 const ITEM_START := 5   # slots 0..4 hold tools; 5.. hold items (seeds / produce / materials)
-const ITEM_PRICES := {"fish": 25, "wood": 8, "rock": 6, "egg": 15}
+const ITEM_PRICES := {"fish": 25, "wood": 8, "rock": 6}
+
+# ---------------------------------------------------------------- village quests
+# Three sequential objectives, auto-tracked. `gold` goals are checked against
+# the live wallet; every other key counts events while that quest is active.
+const QUESTS := [
+	{
+		"title": "Petani Pemula",
+		"goals": {"harvest": 3, "wood": 5},
+		"reward": 100,
+	},
+	{
+		"title": "Nelayan & Peternak",
+		"goals": {"fish": 2, "egg": 2},
+		"reward": 150,
+	},
+	{
+		"title": "Renovasi Desa",
+		"goals": {"gold": 400, "wood": 10, "rock": 8},
+		"reward": 0,
+	},
+]
+
+const GOAL_LABELS := {
+	"harvest": "Panen",
+	"wood": "Kayu",
+	"fish": "Ikan",
+	"egg": "Telur",
+	"rock": "Batu",
+	"gold": "Gold",
+}
+
+var quest_index := 0
+var quest_done := false
+var quest_counts: Dictionary = {}
+var _quest_checking := false
 
 # ------------------------------------------------------------------ time
 
@@ -60,6 +97,7 @@ var selected_slot := 0
 
 func _ready() -> void:
 	set_process(true)
+	gold_changed.connect(_on_gold_changed_for_quest)
 
 
 func _process(delta: float) -> void:
@@ -225,10 +263,13 @@ func add_produce(crop_id: String, qty: int = 1) -> bool:
 	return add_item(crop_id, DataRegistry.crop_name(crop_id), qty)
 
 
-## Sell price for any sellable item id (crops from DataRegistry, materials/fish
-## from ITEM_PRICES).
+## Sell price for any sellable item id (crops and items from DataRegistry,
+## legacy materials from ITEM_PRICES).
 func sell_price(id: String) -> int:
 	var p := DataRegistry.crop_sell_price(id)
+	if p > 0:
+		return p
+	p = DataRegistry.item_sell_price(id)
 	if p > 0:
 		return p
 	return int(ITEM_PRICES.get(id, 0))
@@ -255,3 +296,120 @@ func sell_all_produce() -> int:
 		add_gold(total)
 		inventory_changed.emit()
 	return total
+
+
+# ---------------------------------------------------------------- village quests
+
+func current_quest() -> Dictionary:
+	if quest_done or quest_index < 0 or quest_index >= QUESTS.size():
+		return {}
+	return QUESTS[quest_index]
+
+
+func quest_title() -> String:
+	return String(current_quest().get("title", ""))
+
+
+func quest_reward() -> int:
+	return int(current_quest().get("reward", 0))
+
+
+func quest_goal_value(kind: String) -> int:
+	if kind == "gold":
+		return gold
+	return int(quest_counts.get(kind, 0))
+
+
+## One row per goal: {"label", "have", "need", "done"}.
+func quest_progress() -> Array:
+	var out: Array = []
+	var q := current_quest()
+	if q.is_empty():
+		return out
+	var goals: Dictionary = q.get("goals", {})
+	for kind in goals.keys():
+		var need := int(goals[kind])
+		var have := mini(quest_goal_value(String(kind)), need)
+		out.append({
+			"label": String(GOAL_LABELS.get(kind, kind)),
+			"have": have,
+			"need": need,
+			"done": have >= need,
+		})
+	return out
+
+
+func quest_progress_text() -> String:
+	var parts: Array[String] = []
+	for p in quest_progress():
+		parts.append("%s %d/%d" % [p["label"], int(p["have"]), int(p["need"])])
+	return " • ".join(parts)
+
+
+## Record gameplay progress for the active quest. Kinds with no matching goal
+## (e.g. fishing during quest 1) are ignored.
+func quest_event(kind: String, amount := 1) -> void:
+	if quest_done or _quest_checking or amount <= 0:
+		return
+	var q := current_quest()
+	if q.is_empty():
+		return
+	var goals: Dictionary = q.get("goals", {})
+	if not goals.has(kind):
+		return
+	quest_counts[kind] = int(quest_counts.get(kind, 0)) + amount
+	quest_changed.emit()
+	_check_quest()
+
+
+func _check_quest() -> void:
+	if quest_done or _quest_checking:
+		return
+	var q := current_quest()
+	if q.is_empty():
+		return
+	var goals: Dictionary = q.get("goals", {})
+	for kind in goals.keys():
+		if quest_goal_value(String(kind)) < int(goals[kind]):
+			return
+
+	# Every goal is met: pay the reward, advance, and cascade if the next
+	# quest is already satisfied (e.g. a gold goal after a reward).
+	_quest_checking = true
+	var reward := int(q.get("reward", 0))
+	if reward > 0:
+		gold += reward
+		gold_changed.emit(gold)
+	quest_index += 1
+	quest_counts.clear()
+	if quest_index >= QUESTS.size():
+		quest_done = true
+	_quest_checking = false
+
+	quest_changed.emit()
+	if quest_done:
+		quests_done.emit()
+	else:
+		_check_quest()
+
+
+func _on_gold_changed_for_quest(_new_gold: int) -> void:
+	if quest_done or _quest_checking:
+		return
+	if current_quest().get("goals", {}).has("gold"):
+		quest_changed.emit()
+		_check_quest()
+
+
+## Flavour text for the villager, tied to the active quest.
+func quest_hint() -> String:
+	if quest_done:
+		return "Terima kasih sudah merenovasi desa! Sekarang nikmati hari-hari tenang di ladang."
+	match quest_index:
+		0:
+			return "Papan Misi di dekat pasar mencari petani baru: panen 3 tanaman dan kumpulkan 5 kayu."
+		1:
+			return "Ikan di kolam sedang banyak! Papan Misi minta 2 ikan segar dan 2 telur dari kandang."
+		2:
+			return "Warga mengumpulkan 400 G, 10 kayu, dan 8 batu untuk merenovasi desa. Papan Misi menunggu di dekat pasar!"
+	return ""

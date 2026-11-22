@@ -133,6 +133,43 @@ var crops: Dictionary = {
 	},
 }
 
+# ---------------------------------------------------------------- item table
+# Non-crop items that can sit in the hotbar and be sold / eaten: animal
+# products and gathered materials. Crops keep their own table above.
+
+var items: Dictionary = {
+	"egg": {
+		"name": "Telur",
+		"sell_price": 35,
+		"stamina": 25,
+		"icon": "egg.png",
+	},
+	"milk": {
+		"name": "Susu",
+		"sell_price": 50,
+		"stamina": 35,
+		"icon": "milk.png",
+	},
+	"fish": {
+		"name": "Ikan",
+		"sell_price": 25,
+		"stamina": 20,
+		"icon": "fish.png",
+	},
+	"wood": {
+		"name": "Kayu",
+		"sell_price": 8,
+		"stamina": 0,
+		"icon": "wood.png",
+	},
+	"rock": {
+		"name": "Batu",
+		"sell_price": 6,
+		"stamina": 0,
+		"icon": "rock.png",
+	},
+}
+
 # ---------------------------------------------------------------- helpers
 
 func get_crop_ids() -> Array:
@@ -178,6 +215,38 @@ func crop_stage_texture(id: String, stage: int) -> Texture2D:
 		return null
 	var path: String = CROP_DIR + String(paths[idx])
 	return load(path)
+
+
+# ---------------------------------------------------------------- item helpers
+
+func get_item(id: String) -> Dictionary:
+	return items.get(id, {})
+
+
+func item_name(id: String) -> String:
+	var it: Dictionary = items.get(id, {})
+	return String(it.get("name", id))
+
+
+func item_sell_price(id: String) -> int:
+	var it: Dictionary = items.get(id, {})
+	return int(it.get("sell_price", 0))
+
+
+## Stamina restored when eaten. 0 means "not a stamina item".
+func item_stamina(id: String) -> int:
+	var it: Dictionary = items.get(id, {})
+	return int(it.get("stamina", 0))
+
+
+func item_icon(id: String) -> Texture2D:
+	var it: Dictionary = items.get(id, {})
+	if it.is_empty():
+		return null
+	var file := String(it.get("icon", ""))
+	if file == "":
+		return null
+	return load(CROP_DIR + file)
 
 
 # ---------------------------------------------------------------- shop data

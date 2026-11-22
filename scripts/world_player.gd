@@ -64,6 +64,12 @@ func _collect_zones() -> void:
 			_zones.append(z)
 
 
+## Re-scans Zones after world_game spawns runtime zones (villager, quest board).
+func refresh_zones() -> void:
+	_zones.clear()
+	_collect_zones()
+
+
 func _build_frames(prefix: String) -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")

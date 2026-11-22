@@ -19,6 +19,8 @@ const ICON_ENERGY: Texture2D = preload("res://assets/ui/plant.png")
 const ICON_WOOD: Texture2D = preload("res://assets/crops/wood.png")
 const ICON_ROCK: Texture2D = preload("res://assets/crops/rock.png")
 const ICON_FISH: Texture2D = preload("res://assets/crops/fish.png")
+const ICON_EGG: Texture2D = preload("res://assets/crops/egg.png")
+const ICON_MILK: Texture2D = preload("res://assets/crops/milk.png")
 const BAR_EMPTY: Texture2D = preload("res://assets/ui/greenbar_00.png")
 const BAR_FULL: Texture2D = preload("res://assets/ui/greenbar_06.png")
 const BAR_RED: Texture2D = preload("res://assets/ui/redbar_06.png")
@@ -82,6 +84,8 @@ var _slot_icons: Array[TextureRect] = []
 var _slot_counts: Array[Label] = []
 var _prompt: PanelContainer
 var _prompt_label: Label
+var _prompt_anchor := Vector2.ZERO
+var _prompt_has_anchor := false
 var _toast: Label
 var _toast_tween: Tween
 var _shop_root: Control
@@ -94,6 +98,23 @@ var _confirm_cb: Callable
 var _fade: ColorRect
 var _textures: Dictionary = {}
 var _box_cache: Dictionary = {}
+
+# Village quest tracker (top-right, under the gold panel)
+var _quest_panel: PanelContainer
+var _quest_head: Label
+var _quest_title: Label
+var _quest_goals: VBoxContainer
+
+# Villager / quest-board dialogue (bottom 9-slice box)
+var _dialog_root: Control
+var _dialog_speaker: Label
+var _dialog_text: Label
+var _dialog_open := false
+
+# "Desa Berhasil Renovasi!" demo-complete screen
+var _complete_root: Control
+var _complete_summary: Label
+var _complete_cb: Callable
 
 # Fishing mini-game
 var _fish_root: Control
@@ -118,6 +139,8 @@ func _ready() -> void:
 	_build_prompt()
 	_build_confirm()
 	_build_shop()
+	_build_dialogue()
+	_build_quest_complete()
 	_build_toast()
 	_build_fade()
 	_build_fishing()
@@ -125,6 +148,7 @@ func _ready() -> void:
 	GameState.inventory_changed.connect(_on_inventory_signal)
 	GameState.day_changed.connect(_on_day_signal)
 	GameState.stamina_changed.connect(_on_stamina_signal)
+	GameState.quest_changed.connect(_on_quest_signal)
 
 
 func setup(owner_game: Node) -> void:
@@ -133,6 +157,7 @@ func setup(owner_game: Node) -> void:
 	_on_day_signal(GameState.day)
 	_on_gold_signal(GameState.gold)
 	refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+	refresh_quest()
 
 
 # ------------------------------------------------------------------ build UI
@@ -164,14 +189,74 @@ func _build_top_bar() -> void:
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(spacer)
 
-	# Gold panel (top-right).
+	# Right column: gold panel with the active-quest tracker underneath.
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 3)
+	right.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(right)
+
 	var gold_panel := _status_panel("dt_")
 	gold_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	row.add_child(gold_panel)
+	right.add_child(gold_panel)
 	_gold_label = _label("100 G", 11, GOLD)
 	_gold_label.add_theme_color_override("font_outline_color", OUTLINE)
 	_gold_label.add_theme_constant_override("outline_size", 3)
 	gold_panel.add_child(_gold_label)
+
+	right.add_child(_build_quest_tracker())
+
+
+## Compact "MISI 1/3 — title / goal progress" card.
+func _build_quest_tracker() -> PanelContainer:
+	_quest_panel = _status_panel("lt_")
+	_quest_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_quest_panel.add_child(col)
+
+	_quest_head = _label("MISI 1/3", 8, MUTED)
+	_outline(_quest_head, 3)
+	col.add_child(_quest_head)
+
+	_quest_title = _label("Petani Pemula", 10, GOLD)
+	_outline(_quest_title, 3)
+	col.add_child(_quest_title)
+
+	_quest_goals = VBoxContainer.new()
+	_quest_goals.add_theme_constant_override("separation", 0)
+	_quest_goals.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(_quest_goals)
+	return _quest_panel
+
+
+## Rebuilds the tracker card from GameState (called on every quest signal).
+func refresh_quest() -> void:
+	if _quest_goals == null:
+		return
+	for child in _quest_goals.get_children():
+		_quest_goals.remove_child(child)
+		child.queue_free()
+	if GameState.quest_done:
+		_quest_head.text = "MISI SELESAI"
+		_quest_title.text = "Desa Direnovasi!"
+		var done := _label("Terima kasih, petani.", 8, STAM_GREEN)
+		_outline(done, 3)
+		_quest_goals.add_child(done)
+		return
+	var quest: Dictionary = GameState.current_quest()
+	if quest.is_empty():
+		return
+	_quest_head.text = "MISI %d/%d" % [GameState.quest_index + 1, GameState.QUESTS.size()]
+	_quest_title.text = String(quest.get("title", ""))
+	for p in GameState.quest_progress():
+		var is_done := bool(p["done"])
+		var line := _label("%s %d/%d" % [String(p["label"]), int(p["have"]), int(p["need"])],
+			8, STAM_GREEN if is_done else CREAM)
+		_outline(line, 3)
+		_quest_goals.add_child(line)
 
 
 ## "Hari 1 • 06:00" on the first row, phase badge on the second.
@@ -468,6 +553,164 @@ func _build_shop() -> void:
 	box.add_child(hint)
 
 
+func _build_dialogue() -> void:
+	_dialog_root = Control.new()
+	_dialog_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_dialog_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dialog_root.visible = false
+	add_child(_dialog_root)
+
+	# Sunnyside 9-slice box pinned above the hotbar so it never covers the
+	# inventory slots or the held-item name.
+	var panel := _make_box("dt_", Vector2(528, 96))
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	panel.offset_left = 56
+	panel.offset_right = -56
+	panel.offset_top = -178
+	panel.offset_bottom = -76
+	_dialog_root.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 10)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	margin.add_child(box)
+
+	_dialog_speaker = _label("Warga", 11, GOLD)
+	_outline(_dialog_speaker, 3)
+	box.add_child(_dialog_speaker)
+
+	_dialog_text = _label("", 10, CREAM)
+	_dialog_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dialog_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_dialog_text.custom_minimum_size = Vector2(0, 38)
+	box.add_child(_dialog_text)
+
+	var hint := _label("[E] / [Esc] Tutup", 8, MUTED)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(hint)
+
+
+func open_dialogue(speaker: String, text: String) -> void:
+	if _toast_tween != null:
+		_toast_tween.kill()
+	_toast.modulate.a = 0.0
+	_dialog_speaker.text = speaker
+	_dialog_text.text = text
+	_dialog_root.visible = true
+	_dialog_root.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(_dialog_root, "modulate:a", 1.0, 0.12)
+	_dialog_open = true
+
+
+func close_dialogue() -> void:
+	_dialog_open = false
+	if _dialog_root != null:
+		_dialog_root.visible = false
+
+
+func is_dialogue_open() -> bool:
+	return _dialog_open
+
+
+func _build_quest_complete() -> void:
+	_complete_root = Control.new()
+	_complete_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_complete_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_complete_root.visible = false
+	add_child(_complete_root)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.04, 0.03, 0.02, 0.72)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_complete_root.add_child(dim)
+
+	var panel := _make_box("dt_", Vector2(420, 220))
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -210
+	panel.offset_right = 210
+	panel.offset_top = -118
+	panel.offset_bottom = 118
+	_complete_root.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 18)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 8)
+	margin.add_child(box)
+
+	var title := _label("Desa Berhasil Renovasi!", 18, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_outline(title, 4)
+	box.add_child(title)
+
+	var sub := _label("Demo Selesai", 12, CREAM)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_outline(sub, 3)
+	box.add_child(sub)
+
+	var sep := HSeparator.new()
+	box.add_child(sep)
+
+	_complete_summary = _label("", 10, CREAM)
+	_complete_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_complete_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_complete_summary.custom_minimum_size = Vector2(360, 0)
+	box.add_child(_complete_summary)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 4)
+	box.add_child(spacer)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(row)
+
+	var again := Button.new()
+	again.text = "Lanjut Bermain Bebas"
+	again.custom_minimum_size = Vector2(190, 28)
+	again.add_theme_font_size_override("font_size", 11)
+	again.focus_mode = Control.FOCUS_NONE
+	again.pressed.connect(_on_complete_pressed)
+	row.add_child(again)
+
+
+func show_quest_complete(days: int, gold: int, on_continue: Callable) -> void:
+	_complete_cb = on_continue
+	_complete_summary.text = "Total hari: %d\nTotal gold: %d G\n\nTerima kasih sudah membangun desa!" % [days, gold]
+	_complete_root.visible = true
+	_complete_root.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(_complete_root, "modulate:a", 1.0, 0.25)
+
+
+func hide_quest_complete() -> void:
+	_complete_root.visible = false
+
+
+func is_quest_complete_open() -> bool:
+	return _complete_root != null and _complete_root.visible
+
+
+func _on_complete_pressed() -> void:
+	var cb := _complete_cb
+	_complete_cb = Callable()
+	_complete_root.visible = false
+	if cb.is_valid():
+		cb.call()
+
+
 func _build_toast() -> void:
 	_toast = _label("", 10, CREAM)
 	_toast.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -625,14 +868,25 @@ func refresh_hotbar(items: Array[Dictionary], selected: int) -> void:
 		_item_name.text = ""
 
 
-func show_prompt(text: String) -> void:
+func show_prompt(text: String, anchor := Vector2.INF) -> void:
 	_prompt_label.text = text
+	_prompt_has_anchor = anchor != Vector2.INF
+	if _prompt_has_anchor:
+		_prompt_anchor = anchor
 	_prompt.visible = true
 	_prompt.reset_size()
 
 
 func hide_prompt() -> void:
 	_prompt.visible = false
+	_prompt_has_anchor = false
+
+
+## Move an already-visible prompt without re-showing it (animals wander).
+func set_prompt_anchor(anchor: Vector2) -> void:
+	_prompt_has_anchor = anchor != Vector2.INF
+	if _prompt_has_anchor:
+		_prompt_anchor = anchor
 
 
 func toast(text: String, duration := 2.2) -> void:
@@ -744,18 +998,25 @@ func _process(delta: float) -> void:
 	if _fishing:
 		_update_fishing(delta)
 		if game != null and is_instance_valid(game.player):
-			_position_above_player(_fish_root, 44.0, false)
+			_position_above(_fish_root, game.player.global_position, 44.0, false)
 		return
 
-	# Keep the floating prompt above the player's head.
-	if not _prompt.visible or game == null or not is_instance_valid(game.player):
+	# Keep the floating prompt above the player's head — or above the NPC /
+	# board being talked to, so the box never covers their face.
+	if not _prompt.visible or game == null:
 		return
-	_position_above_player(_prompt, 30.0, true)
+	var anchor := _prompt_anchor
+	var y_off := 0.0
+	if not _prompt_has_anchor:
+		if not is_instance_valid(game.player):
+			return
+		anchor = game.player.global_position
+		y_off = 30.0
+	_position_above(_prompt, anchor, y_off, true)
 
 
-func _position_above_player(ctrl: Control, y_off: float, do_reset: bool) -> void:
-	var player: CharacterBody2D = game.player
-	var screen := get_viewport().get_canvas_transform() * (player.global_position + Vector2(0, -y_off))
+func _position_above(ctrl: Control, world_pos: Vector2, y_off: float, do_reset: bool) -> void:
+	var screen := get_viewport().get_canvas_transform() * (world_pos + Vector2(0, -y_off))
 	if do_reset:
 		ctrl.reset_size()
 	var vp := get_viewport().get_visible_rect().size
@@ -831,6 +1092,10 @@ func _on_inventory_signal() -> void:
 	refresh_hotbar(GameState.hotbar, GameState.selected_slot)
 
 
+func _on_quest_signal() -> void:
+	refresh_quest()
+
+
 func _on_stamina_signal(new_stamina: int) -> void:
 	if _stamina_bar != null:
 		_stamina_bar.value = new_stamina
@@ -891,7 +1156,8 @@ func _produce_icon(crop: String) -> Texture2D:
 		"fish": return ICON_FISH
 		"wood": return ICON_WOOD
 		"rock": return ICON_ROCK
-		"egg": return _load_texture(CROP_DIR + "egg.png")
+		"egg": return ICON_EGG
+		"milk": return ICON_MILK
 	return _load_texture(CROP_DIR + crop + "_05.png")
 
 
@@ -921,6 +1187,7 @@ func _item_label(id: String) -> String:
 		"wood": return "Kayu"
 		"rock": return "Batu"
 		"egg": return "Telur"
+		"milk": return "Susu"
 	return DataRegistry.crop_name(id)
 
 

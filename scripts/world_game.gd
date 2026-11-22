@@ -7,6 +7,9 @@ extends Node2D
 
 const HUD_SCRIPT := preload("res://scripts/hud.gd")
 const FARM_MANAGER_SCRIPT := preload("res://scripts/farming/farm_manager.gd")
+const LIVESTOCK_SCRIPT := preload("res://scripts/livestock_manager.gd")
+const VILLAGER_SCRIPT := preload("res://scripts/villager_npc.gd")
+const QUEST_BOARD_SCRIPT := preload("res://scripts/quest_board.gd")
 
 # Interaction reach. All three are measured from the player's feet, never from
 # the mouse cursor, so nothing can be farmed from the far side of the screen.
@@ -32,11 +35,16 @@ var farm: Node2D
 var hud
 var overlay: Node2D
 var canvas_mod: CanvasModulate
+var livestock: Node2D
+var villager: Node2D
+var quest_board: Node2D
 
 var busy := false
 var shop_open := false
 var fishing_active := false
 var _last_grown := 0
+var _last_products := 0
+var _last_prompt := ""
 
 var _resources: Array = []   # Tree_* and Boulder_* nodes
 var _pond_center := Vector2.ZERO
@@ -51,17 +59,21 @@ func _ready() -> void:
 
 	_create_farm_manager()
 	_create_hud()
+	_create_npc_world()
 	farm.remove_placeholder_crops()
 	_setup_resources()
 
 	GameState.day_changed.connect(_on_day_changed)
+	GameState.quests_done.connect(_on_quests_done)
+	farm.crop_harvested.connect(_on_crop_harvested)
 
-	hud.toast("Selamat datang! (1)Cangkul (2)Siram (3)Kapak (4)Beliung (5)Pancing. F=Makan, E=Interaksi.", 5.0)
+	hud.toast("Selamat datang! Cangkul lahan, rawat ternak [E], dan cek Papan Misi di dekat pasar.", 5.0)
 
 
 func _process(_delta: float) -> void:
 	if canvas_mod != null:
 		canvas_mod.color = _sky_color(GameState.hour_float())
+	_refresh_prompt()
 
 
 # ================================================================ construction
@@ -81,30 +93,118 @@ func _create_hud() -> void:
 	farm.set_hud(hud)
 
 
+## Spawns the 4B cast: livestock right of the farm, the villager by the pond,
+## the quest board outside the market, plus their interaction zones.
+func _create_npc_world() -> void:
+	livestock = LIVESTOCK_SCRIPT.new()
+	livestock.name = "Livestock"
+	add_child(livestock)
+	livestock.setup(self, player)
+
+	villager = VILLAGER_SCRIPT.new()
+	villager.name = "Villager"
+	villager.position = Vector2(702, 374)
+	add_child(villager)
+
+	quest_board = QUEST_BOARD_SCRIPT.new()
+	quest_board.name = "QuestBoard"
+	quest_board.position = Vector2(664, 332)
+	add_child(quest_board)
+
+	_add_zone("VillagerZone", "villager", Vector2(702, 386), Vector2(46, 32))
+	_add_zone("QuestBoardZone", "quest", Vector2(664, 346), Vector2(46, 30))
+	if player != null and player.has_method("refresh_zones"):
+		player.refresh_zones()
+
+
+func _add_zone(node_name: String, interaction: String, pos: Vector2, size: Vector2) -> void:
+	var zones := get_node_or_null("Zones")
+	if zones == null:
+		return
+	var area := Area2D.new()
+	area.name = node_name
+	area.position = pos
+	area.set_meta("interaction", interaction)
+	var col := CollisionShape2D.new()
+	col.name = "Shape"
+	var rect := RectangleShape2D.new()
+	rect.size = size
+	col.shape = rect
+	area.add_child(col)
+	zones.add_child(area)
+
+
 # ================================================================ input
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE:
-			if hud != null and hud.is_confirm_open():
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	match event.keycode:
+		KEY_ESCAPE:
+			if hud != null and hud.is_dialogue_open():
+				_close_dialogue()
+				get_viewport().set_input_as_handled()
+			elif hud != null and hud.is_confirm_open():
 				hud.close_confirm()
 				get_viewport().set_input_as_handled()
 			elif shop_open:
 				close_shop()
 				get_viewport().set_input_as_handled()
+		KEY_E:
+			# While a dialogue is open the player is input-locked, so the E
+			# that closes it has to be caught here instead of in world_player.
+			if hud != null and hud.is_dialogue_open():
+				_close_dialogue()
+				get_viewport().set_input_as_handled()
 
 
 # ================================================================ player callbacks
 
-func on_zone_changed(zone: String) -> void:
-	if shop_open or busy or fishing_active or (hud != null and hud.is_confirm_open()):
-		hud.hide_prompt()
+func on_zone_changed(_zone: String) -> void:
+	_refresh_prompt()
+
+
+## Single source of truth for the floating [E] prompt: area zones first, then
+## the nearest animal when standing on plain grass. Only touches the HUD when
+## the text actually changes, so the prompt never flickers.
+func _refresh_prompt() -> void:
+	if hud == null or player == null:
 		return
-	var text := _prompt_for(zone)
-	if text == "":
+	var want := ""
+	var anchor := Vector2.INF
+	var blocked: bool = busy or shop_open or fishing_active or player.is_busy() \
+		or hud.is_confirm_open() or hud.is_dialogue_open() or hud.is_quest_complete_open()
+	if not blocked:
+		want = _prompt_for(player.current_zone)
+		if want != "":
+			anchor = _zone_anchor(player.current_zone)
+		elif player.current_zone == "" and livestock != null:
+			want = livestock.prompt_for_player()
+			if want != "":
+				anchor = livestock.prompt_anchor()
+	if want == _last_prompt:
+		# Same text: just keep an anchored prompt glued to its NPC / animal.
+		if want != "" and anchor != Vector2.INF:
+			hud.set_prompt_anchor(anchor)
+		return
+	_last_prompt = want
+	if want == "":
 		hud.hide_prompt()
 	else:
-		hud.show_prompt(text)
+		hud.show_prompt(want, anchor)
+
+
+## Where the prompt box should float for each area zone: above the NPC or prop
+## rather than above the player, so it never covers their face.
+func _zone_anchor(zone: String) -> Vector2:
+	match zone:
+		"villager":
+			if villager != null:
+				return villager.global_position + Vector2(0, -34)
+		"quest":
+			if quest_board != null:
+				return quest_board.global_position + Vector2(0, -50)
+	return Vector2.INF
 
 
 func _prompt_for(zone: String) -> String:
@@ -115,6 +215,10 @@ func _prompt_for(zone: String) -> String:
 			return "[E] Jual Hasil Panen"
 		"shop":
 			return "[E] Beli Bibit"
+		"villager":
+			return "[E] Bicara"
+		"quest":
+			return "[E] Papan Misi"
 	return ""
 
 
@@ -131,7 +235,12 @@ func cycle_slot(step: int) -> void:
 # ================================================================ interaction
 
 func interact(zone: String) -> void:
-	if busy or shop_open or zone == "" or (player != null and player.is_busy()):
+	if busy or shop_open or (player != null and player.is_busy()):
+		return
+	if zone == "":
+		# Plain grass: [E] tends / harvests the closest animal.
+		if livestock != null:
+			livestock.try_interact()
 		return
 	match zone:
 		"sleep":
@@ -140,6 +249,86 @@ func interact(zone: String) -> void:
 			_sell_all()
 		"shop":
 			_open_shop()
+		"villager":
+			_talk_villager()
+		"quest":
+			_open_quest_board()
+
+
+# ================================================================ villagers / quest board
+
+func _talk_villager() -> void:
+	if player != null:
+		player.input_locked = true
+	hud.hide_prompt()
+	var who := "Warga"
+	if villager != null:
+		who = String(villager.speaker_name)
+	hud.open_dialogue(who, _villager_text())
+
+
+func _villager_text() -> String:
+	var greet := ""
+	match GameState.phase_name():
+		"Pagi":
+			greet = "Pagi yang cerah! Embun masih menempel di daun-daun ladangmu."
+		"Siang":
+			greet = "Matahari makin terik. Kalau lelah, makan hasil panen dengan F, ya."
+		"Sore":
+			greet = "Langit sore ini cantik sekali, seperti lukisan cat air."
+		"Malam":
+			greet = "Sudah malam... desa jadi sunyi. Jangan lupa tidur di rumah."
+	return greet + "\n\n" + GameState.quest_hint()
+
+
+func _open_quest_board() -> void:
+	if player != null:
+		player.input_locked = true
+	hud.hide_prompt()
+	if GameState.quest_done:
+		hud.open_dialogue("Papan Misi",
+			"Semua misi desa sudah selesai.\nDesa berhasil direnovasi! Terima kasih, petani.")
+		return
+	var quest := GameState.current_quest()
+	var reward := GameState.quest_reward()
+	var reward_text := "Renovasi Desa" if reward <= 0 else "%d G" % reward
+	hud.open_dialogue(
+		"Papan Misi • Misi %d/%d" % [GameState.quest_index + 1, GameState.QUESTS.size()],
+		"%s\n%s\n\nHadiah: %s" % [String(quest.get("title", "")),
+			GameState.quest_progress_text(), reward_text])
+
+
+func _close_dialogue() -> void:
+	if hud == null:
+		return
+	hud.close_dialogue()
+	if player != null and not busy:
+		player.input_locked = false
+	_last_prompt = ""
+	_refresh_prompt()
+
+
+# ================================================================ quests
+
+func _on_crop_harvested(_cell: Vector2i, _crop: String, qty: int) -> void:
+	GameState.quest_event("harvest", qty)
+
+
+func _on_quests_done() -> void:
+	busy = true
+	if player != null:
+		player.input_locked = true
+	hud.hide_prompt()
+	hud.show_quest_complete(GameState.day, GameState.gold, _resume_free_play)
+
+
+func _resume_free_play() -> void:
+	hud.hide_quest_complete()
+	busy = false
+	if player != null:
+		player.input_locked = false
+	_last_prompt = ""
+	_refresh_prompt()
 
 
 func use_tool(cell: Vector2i) -> void:
@@ -234,7 +423,9 @@ func _do_sleep() -> void:
 		msg += "%d tanaman tumbuh." % _last_grown
 	else:
 		msg += "Tanaman butuh disiram sebelum tidur."
-	hud.toast(msg, 3.0)
+	if _last_products > 0:
+		msg += " %d produk ternak siap diambil [E]." % _last_products
+	hud.toast(msg, 3.4)
 
 	var fade_out: Tween = hud.fade_to(0.0, 0.35)
 	await fade_out.finished
@@ -245,6 +436,7 @@ func _do_sleep() -> void:
 
 func _on_day_changed(_new_day: int) -> void:
 	_last_grown = farm.on_day_changed()
+	_last_products = livestock.on_day_changed() if livestock != null else 0
 	_respawn_resources()
 	hud.set_day(GameState.day)
 	hud.set_gold(GameState.gold)
@@ -281,11 +473,14 @@ func eat_selected() -> void:
 	if int(item["count"]) <= 0:
 		item["crop"] = ""
 		item["name"] = ""
-	GameState.restore_stamina(20)
+	var gain := DataRegistry.item_stamina(crop)
+	if gain <= 0:
+		gain = 20
+	GameState.restore_stamina(gain)
 	GameState.inventory_changed.emit()
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
-	hud.toast("Makan %s  (+20 stamina)" % _item_label(crop), 1.6)
-	hud.pop_stamina(20)
+	hud.toast("Makan %s  (+%d stamina)" % [_item_label(crop), gain], 1.6)
+	hud.pop_stamina(gain)
 
 
 func _item_label(id: String) -> String:
@@ -294,6 +489,7 @@ func _item_label(id: String) -> String:
 		"wood": return "Kayu"
 		"rock": return "Batu"
 		"egg": return "Telur"
+		"milk": return "Susu"
 	return DataRegistry.crop_name(id)
 
 
@@ -386,6 +582,7 @@ func _break_resource(node: Node, kind: String) -> void:
 	var label := "Kayu" if kind == "tree" else "Batu"
 	if GameState.add_item(id, label):
 		hud.toast("+1 %s" % label, 1.2)
+		GameState.quest_event(id, 1)
 	else:
 		hud.toast("Tas penuh! Jual dulu di Shipping Bin.")
 	(node as CanvasItem).visible = false
@@ -508,6 +705,7 @@ func _on_fish_result(success: bool) -> void:
 	if success:
 		if GameState.add_item("fish", "Ikan"):
 			hud.toast("Dapat ikan! Jual di Shipping Bin atau makan (F).", 2.2)
+			GameState.quest_event("fish", 1)
 			if player != null and player.has_method("play_action"):
 				player.play_action("reeling", true)
 		else:
