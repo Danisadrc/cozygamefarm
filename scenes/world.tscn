@@ -1,4 +1,4 @@
-[gd_scene load_steps=62 format=4 uid="uid://cvfwyiug5hkix"]
+[gd_scene load_steps=63 format=4 uid="uid://cvfwyiug5hkix"]
 
 [ext_resource type="TileSet" uid="uid://dqldwnc6t1ta6" path="res://resources/world_tiles.tres" id="1_ground"]
 [ext_resource type="Texture2D" uid="uid://jrpuu4vlmpix" path="res://assets/generated/house.png" id="3_house"]
@@ -87,13 +87,13 @@ size = Vector2(16, 160)
 size = Vector2(16, 160)
 
 [sub_resource type="RectangleShape2D" id="Shape_1"]
-size = Vector2(41, 42)
+size = Vector2(41, 24)
 
 [sub_resource type="RectangleShape2D" id="Shape_2"]
-size = Vector2(41, 42)
+size = Vector2(41, 24)
 
 [sub_resource type="RectangleShape2D" id="Shape_4"]
-size = Vector2(18, 10)
+size = Vector2(12, 8)
 
 [sub_resource type="RectangleShape2D" id="Shape_5"]
 size = Vector2(16, 10)
@@ -101,11 +101,14 @@ size = Vector2(16, 10)
 [sub_resource type="RectangleShape2D" id="Shape_6"]
 size = Vector2(14, 8)
 
+[sub_resource type="RectangleShape2D" id="Shape_31"]
+size = Vector2(10, 5)
+
 [sub_resource type="RectangleShape2D" id="Shape_7"]
-size = Vector2(14, 10)
+size = Vector2(12, 8)
 
 [sub_resource type="RectangleShape2D" id="Shape_9"]
-size = Vector2(64, 16)
+size = Vector2(60, 10)
 
 [sub_resource type="RectangleShape2D" id="Shape_8"]
 size = Vector2(12, 8)
@@ -120,14 +123,13 @@ size = Vector2(48, 40)
 size = Vector2(48, 40)
 
 [sub_resource type="RectangleShape2D" id="Shape_13"]
-size = Vector2(10, 6)
+size = Vector2(8, 5)
 
 [node name="World" type="Node2D"]
 y_sort_enabled = true
 script = ExtResource("19_game")
 
 [node name="CanvasModulate" type="CanvasModulate" parent="."]
-color = Color(1, 1, 1, 1)
 
 [node name="Grass" type="Sprite2D" parent="."]
 z_index = -10
@@ -473,11 +475,11 @@ texture = ExtResource("3_house")
 centered = false
 
 [node name="WallLeft" type="CollisionShape2D" parent="House"]
-position = Vector2(-31.5, -27)
+position = Vector2(-31.5, -18)
 shape = SubResource("Shape_1")
 
 [node name="WallRight" type="CollisionShape2D" parent="House"]
-position = Vector2(31.5, -27)
+position = Vector2(31.5, -18)
 shape = SubResource("Shape_2")
 
 [node name="Tree_01" type="StaticBody2D" parent="."]
@@ -1457,53 +1459,6 @@ start_frame = 2
 position = Vector2(0, -4)
 shape = SubResource("Shape_5")
 
-[node name="Tree_63" type="StaticBody2D" parent="."]
-z_index = 10
-position = Vector2(448, 464)
-
-[node name="Sprite" type="AnimatedSprite2D" parent="Tree_63"]
-position = Vector2(0, -39)
-script = ExtResource("15_propanim")
-sheet = ExtResource("6_tree_pine")
-fps = 4.0
-frame_size = Vector2i(28, 43)
-start_frame = 3
-
-[node name="Trunk" type="CollisionShape2D" parent="Tree_63"]
-position = Vector2(0, -4)
-shape = SubResource("Shape_5")
-
-[node name="Tree_64" type="StaticBody2D" parent="."]
-z_index = 10
-position = Vector2(528, 464)
-
-[node name="Sprite" type="AnimatedSprite2D" parent="Tree_64"]
-position = Vector2(0, -30)
-script = ExtResource("15_propanim")
-sheet = ExtResource("5_tree_round")
-fps = 5.0
-frame_size = Vector2i(32, 34)
-
-[node name="Trunk" type="CollisionShape2D" parent="Tree_64"]
-position = Vector2(0, -4)
-shape = SubResource("Shape_4")
-
-[node name="Tree_65" type="StaticBody2D" parent="."]
-z_index = 10
-position = Vector2(464, 528)
-
-[node name="Sprite" type="AnimatedSprite2D" parent="Tree_65"]
-position = Vector2(0, -30)
-script = ExtResource("15_propanim")
-sheet = ExtResource("5_tree_round")
-fps = 5.0
-frame_size = Vector2i(32, 34)
-start_frame = 1
-
-[node name="Trunk" type="CollisionShape2D" parent="Tree_65"]
-position = Vector2(0, -4)
-shape = SubResource("Shape_4")
-
 [node name="Crate_1" type="StaticBody2D" parent="."]
 z_index = 10
 position = Vector2(504, 200)
@@ -1569,57 +1524,29 @@ centered = false
 position = Vector2(0, -4)
 shape = SubResource("Shape_6")
 
-[node name="Stump_1" type="StaticBody2D" parent="."]
+[node name="Stump_1" type="Sprite2D" parent="."]
 z_index = 10
-position = Vector2(104, 276)
-
-[node name="Sprite" type="Sprite2D" parent="Stump_1"]
-position = Vector2(-6, -16)
+position = Vector2(98, 260)
 texture = ExtResource("9_stump")
 centered = false
 
-[node name="Body" type="CollisionShape2D" parent="Stump_1"]
-position = Vector2(0, -4)
-shape = SubResource("Shape_6")
-
-[node name="Stump_2" type="StaticBody2D" parent="."]
+[node name="Stump_2" type="Sprite2D" parent="."]
 z_index = 10
-position = Vector2(664, 212)
-
-[node name="Sprite" type="Sprite2D" parent="Stump_2"]
-position = Vector2(-6, -16)
+position = Vector2(658, 196)
 texture = ExtResource("9_stump")
 centered = false
 
-[node name="Body" type="CollisionShape2D" parent="Stump_2"]
-position = Vector2(0, -4)
-shape = SubResource("Shape_6")
-
-[node name="Stump_3" type="StaticBody2D" parent="."]
+[node name="Stump_3" type="Sprite2D" parent="."]
 z_index = 10
-position = Vector2(856, 324)
-
-[node name="Sprite" type="Sprite2D" parent="Stump_3"]
-position = Vector2(-6, -16)
+position = Vector2(850, 308)
 texture = ExtResource("9_stump")
 centered = false
 
-[node name="Body" type="CollisionShape2D" parent="Stump_3"]
-position = Vector2(0, -4)
-shape = SubResource("Shape_6")
-
-[node name="Stump_4" type="StaticBody2D" parent="."]
+[node name="Stump_4" type="Sprite2D" parent="."]
 z_index = 10
-position = Vector2(248, 580)
-
-[node name="Sprite" type="Sprite2D" parent="Stump_4"]
-position = Vector2(-6, -16)
+position = Vector2(242, 564)
 texture = ExtResource("9_stump")
 centered = false
-
-[node name="Body" type="CollisionShape2D" parent="Stump_4"]
-position = Vector2(0, -4)
-shape = SubResource("Shape_6")
 
 [node name="Boulder_1" type="Sprite2D" parent="."]
 z_index = 9
@@ -1627,17 +1554,35 @@ position = Vector2(160, 77)
 texture = ExtResource("10_boulder")
 centered = false
 
+[node name="Rock" type="StaticBody2D" parent="Boulder_1"]
+
+[node name="Shape" type="CollisionShape2D" parent="Boulder_1/Rock"]
+position = Vector2(7, 8)
+shape = SubResource("Shape_31")
+
 [node name="Boulder_2" type="Sprite2D" parent="."]
 z_index = 9
 position = Vector2(528, 79)
 texture = ExtResource("10_boulder")
 centered = false
 
+[node name="Rock" type="StaticBody2D" parent="Boulder_2"]
+
+[node name="Shape" type="CollisionShape2D" parent="Boulder_2/Rock"]
+position = Vector2(7, 8)
+shape = SubResource("Shape_31")
+
 [node name="Boulder_3" type="Sprite2D" parent="."]
 z_index = 9
 position = Vector2(832, 75)
 texture = ExtResource("10_boulder")
 centered = false
+
+[node name="Rock" type="StaticBody2D" parent="Boulder_3"]
+
+[node name="Shape" type="CollisionShape2D" parent="Boulder_3/Rock"]
+position = Vector2(7, 8)
+shape = SubResource("Shape_31")
 
 [node name="Crop_carrot_01" type="Sprite2D" parent="."]
 z_index = 5
@@ -1865,7 +1810,7 @@ texture = ExtResource("13_bin")
 centered = false
 
 [node name="Body" type="CollisionShape2D" parent="ShippingBin"]
-position = Vector2(0, -8)
+position = Vector2(0, -4)
 shape = SubResource("Shape_7")
 
 [node name="MarketStall" type="StaticBody2D" parent="."]
@@ -1878,7 +1823,7 @@ texture = ExtResource("13b_stall")
 centered = false
 
 [node name="Body" type="CollisionShape2D" parent="MarketStall"]
-position = Vector2(0, -10)
+position = Vector2(0, -5)
 shape = SubResource("Shape_9")
 
 [node name="Merchant" type="StaticBody2D" parent="."]
@@ -1930,11 +1875,12 @@ script = ExtResource("14_player")
 [node name="Hair" type="AnimatedSprite2D" parent="Player"]
 
 [node name="Collision" type="CollisionShape2D" parent="Player"]
-position = Vector2(0, -3)
+position = Vector2(0, -2)
 shape = SubResource("Shape_13")
 
 [node name="Camera" type="Camera2D" parent="Player"]
 position = Vector2(0, -24)
+zoom = Vector2(1.65, 1.65)
 limit_left = 0
 limit_top = 0
 limit_right = 960

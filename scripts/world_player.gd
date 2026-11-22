@@ -28,6 +28,9 @@ const HAIR := "shorthair"
 @onready var _game: Node = get_parent()
 
 var current_zone: String = ""
+## The Area2D the player is currently standing in, so the world can look up
+## which NPC / prop owns the zone (wandering villagers move their own zone).
+var current_zone_area: Area2D = null
 var facing := Vector2i.DOWN
 var input_locked := false
 
@@ -56,12 +59,17 @@ func _ready() -> void:
 
 
 func _collect_zones() -> void:
-	var zones := get_parent().get_node_or_null("Zones")
-	if zones == null:
-		return
-	for z in zones.get_children():
-		if z is Area2D:
-			_zones.append(z)
+	_zones.clear()
+	# Zones live both under $Zones (fixed props) and as children of the NPCs
+	# that stroll around, so the scan has to walk the whole tree.
+	_scan_zones(get_parent())
+
+
+func _scan_zones(node: Node) -> void:
+	for c in node.get_children():
+		if c is Area2D and c.has_meta("interaction"):
+			_zones.append(c)
+		_scan_zones(c)
 
 
 ## Re-scans Zones after world_game spawns runtime zones (villager, quest board).
@@ -253,6 +261,7 @@ func _sync_hair() -> void:
 
 func _update_zone() -> void:
 	var found := ""
+	var area: Area2D = null
 	for z in _zones:
 		var col := z.get_node_or_null("Shape") as CollisionShape2D
 		if col == null or col.shape == null:
@@ -261,7 +270,9 @@ func _update_zone() -> void:
 		var box := Rect2(z.global_position - rect * 0.5, rect)
 		if box.has_point(global_position):
 			found = String(z.get_meta("interaction", ""))
+			area = z
 			break
+	current_zone_area = area
 	if found != current_zone:
 		current_zone = found
 		if _game != null and _game.has_method("on_zone_changed"):

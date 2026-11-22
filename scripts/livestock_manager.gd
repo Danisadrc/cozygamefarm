@@ -39,7 +39,7 @@ func _spawn() -> void:
 	_add_animal("chicken", "egg", "Ayam", "Telur",
 		Vector2(574, 486), CHICK_SHEET, 1.0, -11.0, 20.0, 9.0)
 	_add_animal("cow", "milk", "Sapi", "Susu",
-		Vector2(600, 452), COW_SHEET, 1.7, -16.0, 15.0, 6.0)
+		Vector2(600, 452), COW_SHEET, 0.75, -16.0, 15.0, 6.0)
 
 
 func _add_animal(kind: String, id: String, display: String, product: String,

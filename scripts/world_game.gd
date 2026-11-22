@@ -10,6 +10,48 @@ const FARM_MANAGER_SCRIPT := preload("res://scripts/farming/farm_manager.gd")
 const LIVESTOCK_SCRIPT := preload("res://scripts/livestock_manager.gd")
 const VILLAGER_SCRIPT := preload("res://scripts/villager_npc.gd")
 const QUEST_BOARD_SCRIPT := preload("res://scripts/quest_board.gd")
+const VILLAGE_DECOR_SCRIPT := preload("res://scripts/village_decor.gd")
+
+## Villagers that stroll the road. Bu Sari (the quest-hint giver) is created
+## separately because her zone is baked into $Zones/VillagerZone.
+const NPC_ROSTER := [
+	{
+		"name": "Pak Budi",
+		"hair": "curlyhair",
+		"pos": Vector2(520, 378),
+		"radius": 46.0,
+		"speed": 16.0,
+		"lines": [
+			"Ladangmu makin rapi, Nak. Pagar tua itu dulu dibangun ayahku.",
+			"Kalau sore begini, aku suka duduk di bangku dekat kolam.",
+			"Air kolam itu jernih, tapi jangan terlalu dekat ke tepinya.",
+		],
+	},
+	{
+		"name": "Mbak Rina",
+		"hair": "spikeyhair",
+		"pos": Vector2(300, 376),
+		"radius": 40.0,
+		"speed": 20.0,
+		"lines": [
+			"Bu Sari bilang hasil panenmu laris di pasar. Hebat!",
+			"Aku sedang menanam bunga di pinggir jalan. Jangan diinjak, ya.",
+			"Papan misi di dekat pasar itu selalu punya kabar baru.",
+		],
+	},
+	{
+		"name": "Mas Joko",
+		"hair": "longhair",
+		"pos": Vector2(792, 380),
+		"radius": 38.0,
+		"speed": 18.0,
+		"lines": [
+			"Pasar buka tiap hari, tapi pagi paling ramai.",
+			"Kalau kamu butuh bibit, mampir ke lapak sebelah papan misi.",
+			"Sapi di padang timur itu jinak. Coba rawat dengan E.",
+		],
+	},
+]
 
 # Interaction reach. All three are measured from the player's feet, never from
 # the mouse cursor, so nothing can be farmed from the far side of the screen.
@@ -38,6 +80,8 @@ var canvas_mod: CanvasModulate
 var livestock: Node2D
 var villager: Node2D
 var quest_board: Node2D
+var village_decor: Node2D
+var npcs: Array = []
 
 var busy := false
 var shop_open := false
@@ -94,7 +138,8 @@ func _create_hud() -> void:
 
 
 ## Spawns the 4B cast: livestock right of the farm, the villager by the pond,
-## the quest board outside the market, plus their interaction zones.
+## the quest board outside the market, plus their interaction zones. The
+## playtest polish adds the strolling villagers and the village dressing.
 func _create_npc_world() -> void:
 	livestock = LIVESTOCK_SCRIPT.new()
 	livestock.name = "Livestock"
@@ -104,6 +149,8 @@ func _create_npc_world() -> void:
 	villager = VILLAGER_SCRIPT.new()
 	villager.name = "Villager"
 	villager.position = Vector2(702, 374)
+	# Her zone lives in $Zones so the 4B acceptance test keeps finding it.
+	villager.build_zone = false
 	add_child(villager)
 
 	quest_board = QUEST_BOARD_SCRIPT.new()
@@ -111,10 +158,35 @@ func _create_npc_world() -> void:
 	quest_board.position = Vector2(664, 332)
 	add_child(quest_board)
 
+	village_decor = VILLAGE_DECOR_SCRIPT.new()
+	village_decor.name = "VillageDecor"
+	add_child(village_decor)
+	village_decor.setup(self)
+
+	_spawn_wanderers()
+
 	_add_zone("VillagerZone", "villager", Vector2(702, 386), Vector2(46, 32))
 	_add_zone("QuestBoardZone", "quest", Vector2(664, 346), Vector2(46, 30))
 	if player != null and player.has_method("refresh_zones"):
 		player.refresh_zones()
+
+
+## The strolling villagers. Each one builds its own interaction zone as a child
+## node, so the prompt travels with them along the road.
+func _spawn_wanderers() -> void:
+	for cfg in NPC_ROSTER:
+		var npc := VILLAGER_SCRIPT.new()
+		npc.name = "Villager_" + String(cfg["name"]).replace(" ", "")
+		npc.speaker_name = String(cfg["name"])
+		npc.hair = String(cfg["hair"])
+		npc.lines = cfg["lines"]
+		npc.position = Vector2(cfg["pos"])
+		npc.wander = true
+		npc.radius = float(cfg["radius"])
+		npc.speed = float(cfg["speed"])
+		npc.zone_id = "npc"
+		add_child(npc)
+		npcs.append(npc)
 
 
 func _add_zone(node_name: String, interaction: String, pos: Vector2, size: Vector2) -> void:
@@ -201,10 +273,25 @@ func _zone_anchor(zone: String) -> Vector2:
 		"villager":
 			if villager != null:
 				return villager.global_position + Vector2(0, -34)
+		"npc":
+			var npc := _current_npc()
+			if npc != null:
+				return npc.prompt_anchor()
 		"quest":
 			if quest_board != null:
 				return quest_board.global_position + Vector2(0, -50)
 	return Vector2.INF
+
+
+## The villager whose zone the player is standing in (wandering villagers carry
+## their own zone, so the zone's parent is the NPC).
+func _current_npc() -> Node2D:
+	if player == null or player.current_zone_area == null:
+		return null
+	var owner_node = player.current_zone_area.get_parent()
+	if owner_node is Node2D and owner_node.has_method("next_line"):
+		return owner_node
+	return null
 
 
 func _prompt_for(zone: String) -> String:
@@ -217,6 +304,8 @@ func _prompt_for(zone: String) -> String:
 			return "[E] Beli Bibit"
 		"villager":
 			return "[E] Bicara"
+		"npc":
+			return "[E] Sapa"
 		"quest":
 			return "[E] Papan Misi"
 	return ""
@@ -251,6 +340,8 @@ func interact(zone: String) -> void:
 			_open_shop()
 		"villager":
 			_talk_villager()
+		"npc":
+			_talk_npc()
 		"quest":
 			_open_quest_board()
 
@@ -265,6 +356,16 @@ func _talk_villager() -> void:
 	if villager != null:
 		who = String(villager.speaker_name)
 	hud.open_dialogue(who, _villager_text())
+
+
+func _talk_npc() -> void:
+	var npc := _current_npc()
+	if npc == null:
+		return
+	if player != null:
+		player.input_locked = true
+	hud.hide_prompt()
+	hud.open_dialogue(String(npc.speaker_name), String(npc.next_line()))
 
 
 func _villager_text() -> String:
@@ -606,10 +707,13 @@ func _respawn_resources() -> void:
 
 
 func _set_collisions(node: Node, enabled: bool) -> void:
-	if node is StaticBody2D:
-		for c in node.get_children():
-			if c is CollisionShape2D:
-				(c as CollisionShape2D).set_deferred("disabled", not enabled)
+	# Boulders keep their StaticBody2D under the sprite so the art can be
+	# un-centred, so this walks down instead of only checking the node itself.
+	for c in node.get_children():
+		if c is CollisionShape2D:
+			(c as CollisionShape2D).set_deferred("disabled", not enabled)
+		else:
+			_set_collisions(c, enabled)
 
 
 func _shake(node: Node) -> void:
