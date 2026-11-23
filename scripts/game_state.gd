@@ -2,7 +2,7 @@ extends Node
 ## GameState — Autoload singleton for persistent game state.
 ##
 ## Owns gold, day counter, time-of-day (hour/minute with day/night cycle),
-## and the player inventory / hotbar (8 slots).
+## and the player inventory: a 5-slot hotbar plus a 15-slot backpack (5x3).
 ## All UI reads from here; FarmManager mutates tile state but calls
 ## GameState for gold/day changes.
 
@@ -15,10 +15,18 @@ signal quest_changed
 signal quests_done
 
 const START_GOLD := 100
-const MAX_SLOTS := 10
+const MAX_SLOTS := 5            # hotbar slots 0..4
+const BACKPACK_SLOTS := 15      # backpack grid 5x3, slots 0..14
 const MAX_STAMINA := 100
-const ITEM_START := 5   # slots 0..4 hold tools; 5.. hold items (seeds / produce / materials)
+const ITEM_START := MAX_SLOTS   # legacy: hotbar holds tools, items live in the backpack
 const ITEM_PRICES := {"fish": 25, "wood": 8, "rock": 6}
+const TOOL_NAMES := {
+	"hoe": "Cangkul",
+	"water": "Penyiram",
+	"axe": "Kapak",
+	"pickaxe": "Beliung",
+	"rod": "Pancingan",
+}
 
 # ---------------------------------------------------------------- village quests
 # Three sequential objectives, auto-tracked. `gold` goals are checked against
@@ -77,27 +85,44 @@ var stamina := MAX_STAMINA
 #   tool slot:    {"type": "tool", "tool": "hoe"|"water", "name": "Cangkul", "count": 0}
 #   seed slot:    {"type": "seed", "crop": "<id>", "name": "...", "count": N}
 #   produce slot: {"type": "produce", "crop": "<id>", "name": "...", "count": N}
+#   empty slot:   {"type": "", "tool": "", "crop": "", "name": "", "count": 0}
+# The hotbar holds the five tools; everything else starts in the backpack.
 var hotbar: Array[Dictionary] = _default_hotbar()
+var backpack: Array[Dictionary] = _default_backpack()
 
 var selected_slot := 0
 
 
-## The ten starting slots: five tools, five carrot/potato seeds, three empty
-## produce slots. Built by a function so reset() can hand out a fresh copy.
+## The five starting hotbar slots: one slot per main tool.
 func _default_hotbar() -> Array[Dictionary]:
-	var slots: Array[Dictionary] = [
-		{"type": "tool", "tool": "hoe",     "name": "Cangkul",   "count": 0},
-		{"type": "tool", "tool": "water",   "name": "Penyiram",  "count": 0},
-		{"type": "tool", "tool": "axe",     "name": "Kapak",     "count": 0},
-		{"type": "tool", "tool": "pickaxe", "name": "Beliung",   "count": 0},
-		{"type": "tool", "tool": "rod",     "name": "Pancingan", "count": 0},
-		{"type": "seed", "crop": "carrot", "name": "Bibit Wortel",  "count": 5},
-		{"type": "seed", "crop": "potato", "name": "Bibit Kentang", "count": 5},
-		{"type": "produce", "crop": "", "name": "", "count": 0},
-		{"type": "produce", "crop": "", "name": "", "count": 0},
-		{"type": "produce", "crop": "", "name": "", "count": 0},
-	]
+	var slots: Array[Dictionary] = []
+	for entry in [["hoe", "Cangkul"], ["water", "Penyiram"], ["axe", "Kapak"],
+			["pickaxe", "Beliung"], ["rod", "Pancingan"]]:
+		slots.append({
+			"type": "tool",
+			"tool": String(entry[0]),
+			"crop": "",
+			"name": String(entry[1]),
+			"count": 0,
+		})
 	return slots
+
+
+## The fifteen starting backpack slots: carrot + potato seeds in the first two,
+## the rest empty and ready for harvests / gathered materials.
+func _default_backpack() -> Array[Dictionary]:
+	var slots: Array[Dictionary] = []
+	for _i in BACKPACK_SLOTS:
+		slots.append(_empty_slot())
+	slots[0] = {"type": "seed", "tool": "", "crop": "carrot",
+		"name": "Bibit Wortel", "count": 5}
+	slots[1] = {"type": "seed", "tool": "", "crop": "potato",
+		"name": "Bibit Kentang", "count": 5}
+	return slots
+
+
+func _empty_slot() -> Dictionary:
+	return {"type": "", "tool": "", "crop": "", "name": "", "count": 0}
 
 
 # ------------------------------------------------------------------ lifecycle
@@ -112,7 +137,8 @@ func _process(delta: float) -> void:
 
 
 ## Put a brand-new game back on the table: starting gold / day / 06:00 clock /
-## full stamina, the ten default hotbar slots, and quest 1 of 3 untouched.
+## full stamina, the five default tools in the hotbar, carrot + potato seeds in
+## the backpack, and quest 1 of 3 untouched.
 ## Called by the title screen's "Mulai Bermain" button, and safe to call at any
 ## point because every value is replaced rather than adjusted.
 func reset() -> void:
@@ -125,6 +151,7 @@ func reset() -> void:
 	stamina = MAX_STAMINA
 	selected_slot = 0
 	hotbar = _default_hotbar()
+	backpack = _default_backpack()
 
 	quest_index = 0
 	quest_done = false
@@ -257,42 +284,246 @@ func get_selected() -> Dictionary:
 	return hotbar[selected_slot]
 
 
-## Find a seed slot for `crop_id`, or claim the first free item slot.
-## Returns the slot index, or -1 if no room.
-func find_or_add_seed(crop_id: String) -> int:
-	for i in range(ITEM_START, MAX_SLOTS):
-		if String(hotbar[i].get("type", "")) == "seed" and String(hotbar[i]["crop"]) == crop_id:
-			return i
-	for i in range(ITEM_START, MAX_SLOTS):
-		if int(hotbar[i]["count"]) <= 0:
-			hotbar[i]["type"] = "seed"
-			hotbar[i]["crop"] = crop_id
-			hotbar[i]["name"] = DataRegistry.crop_seed_name(crop_id)
-			hotbar[i]["count"] = 0
+## The slot array for a zone name ("hotbar" / "backpack"). Arrays are
+## references, so mutating the result mutates the real inventory.
+func _zone_slots(zone: String) -> Array[Dictionary]:
+	if zone == "backpack":
+		return backpack
+	return hotbar
+
+
+func get_slot(zone: String, index: int) -> Dictionary:
+	var slots := _zone_slots(zone)
+	if index < 0 or index >= slots.size():
+		return {}
+	return slots[index]
+
+
+## True for a slot that can be claimed by a new item. Tool slots are never
+## empty even though their count is 0 (they are permanent equipment).
+func is_slot_empty(item: Dictionary) -> bool:
+	if item.is_empty():
+		return true
+	var kind := String(item.get("type", ""))
+	if kind == "":
+		return true
+	if kind == "tool":
+		return false
+	return int(item.get("count", 0)) <= 0
+
+
+## Stack identity: tools never stack, seeds stack per crop, produce per crop.
+func _stack_key(item: Dictionary) -> String:
+	if is_slot_empty(item):
+		return ""
+	match String(item.get("type", "")):
+		"seed":
+			return "seed:" + String(item.get("crop", ""))
+		"produce":
+			return "produce:" + String(item.get("crop", ""))
+	return ""
+
+
+func _same_stack(a: Dictionary, b: Dictionary) -> bool:
+	var key := _stack_key(a)
+	return key != "" and key == _stack_key(b)
+
+
+## First slot holding a stack with `key`, searched hotbar then backpack.
+## Returns {"zone": String, "index": int}, or {} when absent.
+func _find_stack(key: String) -> Dictionary:
+	if key == "":
+		return {}
+	for zone in ["hotbar", "backpack"]:
+		var slots := _zone_slots(zone)
+		for i in slots.size():
+			if _stack_key(slots[i]) == key:
+				return {"zone": zone, "index": i}
+	return {}
+
+
+func _find_empty_slot(zone: String) -> int:
+	var slots := _zone_slots(zone)
+	for i in slots.size():
+		if is_slot_empty(slots[i]):
 			return i
 	return -1
 
 
-## Add an item (produce, fish, wood, rock, egg…) to the item slots.
-## Stacks with a matching item, otherwise claims the first empty slot.
+## Add a produce / material item. Stacks with an identical item first, then
+## claims an empty hotbar slot (0..4), then an empty backpack slot (0..14).
 ## Returns true if added.
 func add_item(id: String, display: String, qty: int = 1) -> bool:
-	for i in range(ITEM_START, MAX_SLOTS):
-		var it: Dictionary = hotbar[i]
-		if String(it.get("type", "")) == "produce" and String(it["crop"]) == id and int(it["count"]) > 0:
-			it["count"] = int(it["count"]) + qty
-			inventory_changed.emit()
-			return true
-	for i in range(ITEM_START, MAX_SLOTS):
-		var it: Dictionary = hotbar[i]
-		if int(it["count"]) <= 0:
-			it["type"] = "produce"
-			it["crop"] = id
-			it["name"] = display
-			it["count"] = qty
-			inventory_changed.emit()
-			return true
+	if qty <= 0:
+		return false
+	var loc := _find_stack("produce:" + id)
+	if not loc.is_empty():
+		var stacked := get_slot(String(loc["zone"]), int(loc["index"]))
+		stacked["count"] = int(stacked["count"]) + qty
+		inventory_changed.emit()
+		return true
+	for zone in ["hotbar", "backpack"]:
+		var index := _find_empty_slot(zone)
+		if index == -1:
+			continue
+		var slots := _zone_slots(zone)
+		slots[index] = {
+			"type": "produce", "tool": "", "crop": id,
+			"name": display, "count": qty,
+		}
+		inventory_changed.emit()
+		return true
 	return false
+
+
+## Add seeds, stacking with the same crop first (hotbar then backpack).
+## Returns true if added.
+func add_seed(crop_id: String, qty: int = 1) -> bool:
+	if qty <= 0:
+		return false
+	var loc := _find_stack("seed:" + crop_id)
+	if not loc.is_empty():
+		var stacked := get_slot(String(loc["zone"]), int(loc["index"]))
+		stacked["count"] = int(stacked["count"]) + qty
+		inventory_changed.emit()
+		return true
+	for zone in ["hotbar", "backpack"]:
+		var index := _find_empty_slot(zone)
+		if index == -1:
+			continue
+		var slots := _zone_slots(zone)
+		slots[index] = {
+			"type": "seed", "tool": "", "crop": crop_id,
+			"name": DataRegistry.crop_seed_name(crop_id), "count": qty,
+		}
+		inventory_changed.emit()
+		return true
+	return false
+
+
+func can_add_seed(crop_id: String) -> bool:
+	if not _find_stack("seed:" + crop_id).is_empty():
+		return true
+	return _find_empty_slot("hotbar") != -1 or _find_empty_slot("backpack") != -1
+
+
+## Legacy helper kept for older callers: returns the hotbar index of a seed
+## stack (or a newly claimed hotbar slot), or -1. Prefer add_seed().
+func find_or_add_seed(crop_id: String) -> int:
+	var loc := _find_stack("seed:" + crop_id)
+	if not loc.is_empty():
+		return int(loc["index"]) if String(loc["zone"]) == "hotbar" else -1
+	var index := _find_empty_slot("hotbar")
+	if index == -1:
+		return -1
+	hotbar[index] = {
+		"type": "seed", "tool": "", "crop": crop_id,
+		"name": DataRegistry.crop_seed_name(crop_id), "count": 0,
+	}
+	return index
+
+
+## Move or merge items between the hotbar and the backpack. Identical stacks
+## merge into the destination; everything else is swapped. Returns true when
+## something changed.
+func swap_slots(from_zone: String, from_idx: int, to_zone: String,
+		to_idx: int) -> bool:
+	var from_slots := _zone_slots(from_zone)
+	var to_slots := _zone_slots(to_zone)
+	if from_idx < 0 or from_idx >= from_slots.size():
+		return false
+	if to_idx < 0 or to_idx >= to_slots.size():
+		return false
+	if from_zone == to_zone and from_idx == to_idx:
+		return false
+	var a: Dictionary = from_slots[from_idx]
+	var b: Dictionary = to_slots[to_idx]
+	if not is_slot_empty(a) and not is_slot_empty(b) and _same_stack(a, b):
+		b["count"] = int(b["count"]) + int(a["count"])
+		from_slots[from_idx] = _empty_slot()
+	else:
+		from_slots[from_idx] = b
+		to_slots[to_idx] = a
+	inventory_changed.emit()
+	return true
+
+
+## Stamina restored by eating a slot, or 0 when it is not food.
+func eat_gain(item: Dictionary) -> int:
+	if String(item.get("type", "")) != "produce":
+		return 0
+	var id := String(item.get("crop", ""))
+	if id == "":
+		return 0
+	if not DataRegistry.get_crop(id).is_empty():
+		return 20
+	return DataRegistry.item_stamina(id)
+
+
+## Eat one item from a slot. Returns the stamina gained (0 = not edible / full).
+func eat_slot(zone: String, index: int) -> int:
+	var item := get_slot(zone, index)
+	if is_slot_empty(item):
+		return 0
+	var gain := eat_gain(item)
+	if gain <= 0 or stamina >= MAX_STAMINA:
+		return 0
+	item["count"] = int(item["count"]) - 1
+	if int(item["count"]) <= 0:
+		var slots := _zone_slots(zone)
+		slots[index] = _empty_slot()
+	restore_stamina(gain)
+	inventory_changed.emit()
+	return gain
+
+
+## Throw away one unit of a seed / produce stack. Tools are never discarded.
+func discard_one(zone: String, index: int) -> bool:
+	var item := get_slot(zone, index)
+	if is_slot_empty(item):
+		return false
+	var kind := String(item.get("type", ""))
+	if kind != "seed" and kind != "produce":
+		return false
+	item["count"] = int(item["count"]) - 1
+	if int(item["count"]) <= 0:
+		var slots := _zone_slots(zone)
+		slots[index] = _empty_slot()
+	inventory_changed.emit()
+	return true
+
+
+## Everything the backpack info panel needs for one slot ({} when empty).
+func slot_info(zone: String, index: int) -> Dictionary:
+	var item := get_slot(zone, index)
+	if is_slot_empty(item):
+		return {}
+	var kind := String(item.get("type", ""))
+	var id := String(item.get("crop", ""))
+	if kind == "tool":
+		id = String(item.get("tool", ""))
+	var display := String(item.get("name", ""))
+	if display == "":
+		if kind == "tool":
+			display = String(TOOL_NAMES.get(id, "Alat"))
+		else:
+			display = DataRegistry.crop_name(id)
+	var sell := 0
+	if kind == "produce":
+		sell = sell_price(id)
+	var stamina := eat_gain(item)
+	return {
+		"zone": zone,
+		"index": index,
+		"type": kind,
+		"id": id,
+		"name": display,
+		"count": int(item.get("count", 0)),
+		"sell": sell,
+		"stamina": stamina,
+		"edible": stamina > 0,
+		"discardable": kind != "tool",
+	}
 
 
 ## Convenience wrapper used by FarmManager when harvesting a crop.
@@ -312,23 +543,23 @@ func sell_price(id: String) -> int:
 	return int(ITEM_PRICES.get(id, 0))
 
 
-## Sell every produce/material item in the item slots. Returns gold earned.
+## Sell every produce/material stack in both zones. Returns gold earned.
 func sell_all_produce() -> int:
 	var total := 0
-	for i in range(ITEM_START, MAX_SLOTS):
-		var item: Dictionary = hotbar[i]
-		var amount := int(item["count"])
-		if amount <= 0:
-			continue
-		if String(item.get("type", "")) != "produce":
-			continue
-		var crop := String(item["crop"])
-		if crop == "":
-			continue
-		total += amount * sell_price(crop)
-		item["crop"] = ""
-		item["name"] = ""
-		item["count"] = 0
+	for zone in ["hotbar", "backpack"]:
+		var slots := _zone_slots(zone)
+		for i in slots.size():
+			var item: Dictionary = slots[i]
+			if String(item.get("type", "")) != "produce":
+				continue
+			var amount := int(item["count"])
+			if amount <= 0:
+				continue
+			var crop := String(item["crop"])
+			if crop == "":
+				continue
+			total += amount * sell_price(crop)
+			slots[i] = _empty_slot()
 	if total > 0:
 		add_gold(total)
 		inventory_changed.emit()

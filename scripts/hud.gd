@@ -2,9 +2,10 @@ class_name FarmHUD
 extends CanvasLayer
 ## HUD for the farm loop. Built entirely from the Sunnyside UI pack.
 ##
-## Layers: top bar (day / clock+phase / gold), an eight-slot hotbar using the
-## 9-slice box art, the floating [E] prompt, toasts + floating gold popups, the
-## sleep confirmation dialog, the seed-shop panel and the sleep fade.
+## Layers: top bar (day / clock+phase / gold), a five-slot hotbar using the
+## 9-slice box art, the backpack panel ([I]/[Tab]) with its 5x3 grid, the
+## floating [E] prompt, toasts + floating gold popups, the sleep confirmation
+## dialog, the seed-shop panel and the sleep fade.
 
 const BOX_DIR := "res://assets/ui/9slice_box_white/"
 const ICON_HOE: Texture2D = preload("res://assets/ui/shovel.png")
@@ -12,6 +13,7 @@ const ICON_WATER: Texture2D = preload("res://assets/ui/water.png")
 const ICON_AXE: Texture2D = preload("res://assets/ui/axe.png")
 const ICON_PICKAXE: Texture2D = preload("res://assets/ui/pickaxe.png")
 const ICON_ROD: Texture2D = preload("res://assets/ui/rod.png")
+const ICON_BAG: Texture2D = preload("res://assets/ui/basket.png")
 const ICON_SEEDS: Texture2D = preload("res://assets/crops/seeds_generic.png")
 const ICON_CLOCK: Texture2D = preload("res://assets/ui/sandtimer.png")
 const ICON_STOPWATCH: Texture2D = preload("res://assets/ui/stopwatch.png")
@@ -134,6 +136,24 @@ const FISH_SPEED := 1.15
 var _pause_root: Control
 var _pause_clock: Label
 
+# Backpack panel ([I] / [Tab]) — 15 backpack slots above 5 active hotbar slots.
+var _bag_root: Control
+var _bag_toggle: Button
+var _bag_slot_bgs: Array[NinePatchRect] = []
+var _bag_slot_icons: Array[TextureRect] = []
+var _bag_slot_counts: Array[Label] = []
+var _bag_hot_bgs: Array[NinePatchRect] = []
+var _bag_hot_icons: Array[TextureRect] = []
+var _bag_hot_counts: Array[Label] = []
+var _bag_sel_zone := ""
+var _bag_sel_index := -1
+var _bag_info_icon: TextureRect
+var _bag_info_name: Label
+var _bag_info_sell: Label
+var _bag_info_stam: Label
+var _bag_eat_btn: Button
+var _bag_drop_btn: Button
+
 
 func _ready() -> void:
 	# The HUD keeps running while the tree is paused: it owns the pause menu,
@@ -143,6 +163,7 @@ func _ready() -> void:
 	_prepare_bar_textures()
 	_build_top_bar()
 	_build_hotbar()
+	_build_backpack()
 	_build_prompt()
 	_build_confirm()
 	_build_shop()
@@ -165,6 +186,7 @@ func setup(owner_game: Node) -> void:
 	_on_day_signal(GameState.day)
 	_on_gold_signal(GameState.gold)
 	refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+	refresh_backpack()
 	refresh_quest()
 
 
@@ -204,13 +226,35 @@ func _build_top_bar() -> void:
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(right)
 
+	# Gold + the small bag icon share the top-right row, so the quest tracker
+	# underneath keeps its original height.
+	var gold_row := HBoxContainer.new()
+	gold_row.alignment = BoxContainer.ALIGNMENT_END
+	gold_row.add_theme_constant_override("separation", 4)
+	gold_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.add_child(gold_row)
+
 	var gold_panel := _status_panel("dt_")
 	gold_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	right.add_child(gold_panel)
+	gold_row.add_child(gold_panel)
 	_gold_label = _label("100 G", 11, GOLD)
 	_gold_label.add_theme_color_override("font_outline_color", OUTLINE)
 	_gold_label.add_theme_constant_override("outline_size", 3)
 	gold_panel.add_child(_gold_label)
+
+	_bag_toggle = Button.new()
+	_bag_toggle.name = "BagButton"
+	_bag_toggle.icon = ICON_BAG
+	_bag_toggle.tooltip_text = "Tas Ransel [I]"
+	_bag_toggle.custom_minimum_size = Vector2(26, 20)
+	_bag_toggle.focus_mode = Control.FOCUS_NONE
+	_bag_toggle.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_bag_toggle.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_bag_toggle.add_theme_stylebox_override("normal", _button_box("lt_"))
+	_bag_toggle.add_theme_stylebox_override("hover", _button_box("w_"))
+	_bag_toggle.add_theme_stylebox_override("pressed", _button_box("dt_"))
+	_bag_toggle.pressed.connect(toggle_backpack)
+	gold_row.add_child(_bag_toggle)
 
 	right.add_child(_build_quest_tracker())
 
@@ -368,8 +412,8 @@ func _build_hotbar() -> void:
 	bar.add_theme_constant_override("separation", 4)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	bar.offset_left = -188
-	bar.offset_right = 188
+	bar.offset_left = -93
+	bar.offset_right = 93
 	bar.offset_top = -50
 	bar.offset_bottom = -14
 	add_child(bar)
@@ -425,6 +469,175 @@ func _build_hotbar() -> void:
 	_item_name.add_theme_constant_override("outline_size", 3)
 	_item_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_item_name)
+
+
+## The backpack overlay: 15 slots (5x3) on the left, the 5 active hotbar slots
+## underneath, and a compact item-info column with Makan / Buang 1 on the right.
+func _build_backpack() -> void:
+	_bag_root = Control.new()
+	_bag_root.name = "Backpack"
+	_bag_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_bag_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_bag_root.visible = false
+	add_child(_bag_root)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.04, 0.03, 0.02, 0.6)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_bag_root.add_child(dim)
+
+	var panel := _make_box("dt_", Vector2(420, 250))
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -210
+	panel.offset_right = 210
+	panel.offset_top = -125
+	panel.offset_bottom = 125
+	_bag_root.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 12)
+	panel.add_child(margin)
+
+	var box := HBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	margin.add_child(box)
+
+	# ---- left: backpack grid + active hotbar row
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_constant_override("separation", 3)
+	box.add_child(left)
+
+	var title := _label("TAS RANSEL  15 SLOT", 11, GOLD)
+	_outline(title, 3)
+	left.add_child(title)
+
+	var grid := GridContainer.new()
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", 3)
+	grid.add_theme_constant_override("v_separation", 3)
+	left.add_child(grid)
+	for i in GameState.BACKPACK_SLOTS:
+		_make_bag_slot(grid, "backpack", i, "")
+
+	left.add_child(HSeparator.new())
+
+	var hot_title := _label("HOTBAR AKTIF", 9, MUTED)
+	_outline(hot_title, 3)
+	left.add_child(hot_title)
+
+	var hot_row := HBoxContainer.new()
+	hot_row.add_theme_constant_override("separation", 3)
+	left.add_child(hot_row)
+	for i in GameState.MAX_SLOTS:
+		_make_bag_slot(hot_row, "hotbar", i, str(i + 1))
+
+	var hint := _label(
+		"Klik slot untuk memilih, lalu klik slot lain untuk tukar/mindah. [I]/[Tab]/[Esc] tutup.",
+		8, MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(170, 0)
+	left.add_child(hint)
+
+	# ---- right: selected-item info + quick actions
+	var right := VBoxContainer.new()
+	right.custom_minimum_size = Vector2(112, 0)
+	right.add_theme_constant_override("separation", 3)
+	box.add_child(right)
+
+	var info_title := _label("INFO ITEM", 9, MUTED)
+	_outline(info_title, 3)
+	right.add_child(info_title)
+
+	var icon_row := HBoxContainer.new()
+	icon_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	right.add_child(icon_row)
+
+	_bag_info_icon = TextureRect.new()
+	_bag_info_icon.custom_minimum_size = Vector2(30, 30)
+	_bag_info_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_bag_info_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_bag_info_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_bag_info_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_row.add_child(_bag_info_icon)
+
+	_bag_info_name = _label("Pilih item", 11, CREAM)
+	_bag_info_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_bag_info_name.custom_minimum_size = Vector2(112, 0)
+	_outline(_bag_info_name, 3)
+	right.add_child(_bag_info_name)
+
+	_bag_info_sell = _label("Jual: -", 9, GOLD)
+	_outline(_bag_info_sell, 3)
+	right.add_child(_bag_info_sell)
+
+	_bag_info_stam = _label("Stamina: -", 9, STAM_GREEN)
+	_outline(_bag_info_stam, 3)
+	right.add_child(_bag_info_stam)
+
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.add_child(spacer)
+
+	_bag_eat_btn = _pause_button("Makan", _on_bag_eat)
+	_bag_eat_btn.tooltip_text = "Makan 1 item terpilih"
+	right.add_child(_bag_eat_btn)
+
+	_bag_drop_btn = _pause_button("Buang 1", _on_bag_drop)
+	_bag_drop_btn.tooltip_text = "Buang 1 item terpilih"
+	right.add_child(_bag_drop_btn)
+
+	right.add_child(_pause_button("Tutup", close_backpack))
+
+
+func _make_bag_slot(parent: Control, zone: String, index: int, key_text: String) -> void:
+	var slot := Control.new()
+	slot.custom_minimum_size = Vector2(30, 30)
+	slot.mouse_filter = Control.MOUSE_FILTER_STOP
+	parent.add_child(slot)
+
+	var bg := _make_box("lt_", Vector2(30, 30))
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(bg)
+
+	var icon := TextureRect.new()
+	icon.position = Vector2(6, 6)
+	icon.size = Vector2(18, 18)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(icon)
+
+	var count := _label("", 9, CREAM)
+	count.position = Vector2(0, 17)
+	count.size = Vector2(27, 12)
+	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	count.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	count.add_theme_constant_override("outline_size", 3)
+	count.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(count)
+
+	if key_text != "":
+		var key := _label(key_text, 8, Color(0.95, 0.9, 0.74, 0.95))
+		key.position = Vector2(2, 0)
+		key.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(key)
+
+	slot.gui_input.connect(_on_bag_slot_input.bind(zone, index))
+	if zone == "backpack":
+		_bag_slot_bgs.append(bg)
+		_bag_slot_icons.append(icon)
+		_bag_slot_counts.append(count)
+	else:
+		_bag_hot_bgs.append(bg)
+		_bag_hot_icons.append(icon)
+		_bag_hot_counts.append(count)
 
 
 func _build_prompt() -> void:
@@ -857,8 +1070,8 @@ func _pause_button(text: String, on_press: Callable) -> Button:
 
 
 ## Esc: close the pause menu, or open it when nothing else is on screen.
-## Other overlays (dialogue, shop, confirm, fishing) handle Esc themselves, so
-## this returns without consuming the key for them.
+## Other overlays (dialogue, shop, confirm, fishing, backpack) handle Esc
+## themselves, so this returns without consuming the key for them.
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey):
 		return
@@ -875,9 +1088,139 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
+## [I] / [Tab] toggle the backpack; Esc closes it before it can reach the pause
+## menu. Handled in _input so the shortcut also works while the player is
+## input-locked and before Godot's focus navigation can eat Tab.
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key := event as InputEventKey
+	if not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_ESCAPE:
+		if is_backpack_open():
+			close_backpack()
+			get_viewport().set_input_as_handled()
+		return
+	if key.keycode != KEY_I and key.keycode != KEY_TAB:
+		return
+	if is_pause_open():
+		return
+	if is_backpack_open():
+		close_backpack()
+	elif not is_any_overlay_open():
+		open_backpack()
+	get_viewport().set_input_as_handled()
+
+
+# ------------------------------------------------------------------ backpack
+
+func open_backpack() -> void:
+	if _bag_root == null or _bag_root.visible:
+		return
+	# Never stack the bag on top of the shop / dialogue / confirm / pause.
+	if is_any_overlay_open():
+		return
+	if _toast_tween != null:
+		_toast_tween.kill()
+	_toast.modulate.a = 0.0
+	_bag_sel_zone = ""
+	_bag_sel_index = -1
+	refresh_backpack()
+	_bag_root.visible = true
+	_bag_root.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(_bag_root, "modulate:a", 1.0, 0.12)
+	SfxPlayer.play("pet")
+	if game != null and game.has_method("on_backpack_toggled"):
+		game.on_backpack_toggled(true)
+
+
+func close_backpack() -> void:
+	if _bag_root == null or not _bag_root.visible:
+		return
+	_bag_root.visible = false
+	_bag_sel_zone = ""
+	_bag_sel_index = -1
+	if game != null and game.has_method("on_backpack_toggled"):
+		game.on_backpack_toggled(false)
+
+
+func toggle_backpack() -> void:
+	if is_backpack_open():
+		close_backpack()
+	else:
+		open_backpack()
+
+
+func is_backpack_open() -> bool:
+	return _bag_root != null and _bag_root.visible
+
+
+func _on_bag_slot_input(event: InputEvent, zone: String, index: int) -> void:
+	if event is InputEventMouseButton and event.pressed \
+			and event.button_index == MOUSE_BUTTON_LEFT:
+		_on_bag_slot_clicked(zone, index)
+
+
+## First click selects (gold highlight); the next click swaps / merges with the
+## selected slot. Clicking the same slot again clears the selection.
+func _on_bag_slot_clicked(zone: String, index: int) -> void:
+	if _bag_sel_index >= 0:
+		if _bag_sel_zone == zone and _bag_sel_index == index:
+			_bag_sel_zone = ""
+			_bag_sel_index = -1
+			refresh_backpack()
+			return
+		if GameState.swap_slots(_bag_sel_zone, _bag_sel_index, zone, index):
+			SfxPlayer.play("pet")
+		_bag_sel_zone = ""
+		_bag_sel_index = -1
+		refresh_backpack()
+		return
+	if GameState.is_slot_empty(GameState.get_slot(zone, index)):
+		_bag_sel_zone = ""
+		_bag_sel_index = -1
+		refresh_backpack()
+		return
+	_bag_sel_zone = zone
+	_bag_sel_index = index
+	refresh_backpack()
+
+
+func _on_bag_eat() -> void:
+	var info := GameState.slot_info(_bag_sel_zone, _bag_sel_index)
+	if info.is_empty():
+		return
+	if not bool(info["edible"]):
+		toast("Item ini tidak bisa dimakan.", 1.4)
+		return
+	if GameState.stamina >= GameState.MAX_STAMINA:
+		toast("Stamina sudah penuh.", 1.4)
+		return
+	var gain := GameState.eat_slot(_bag_sel_zone, _bag_sel_index)
+	if gain <= 0:
+		return
+	toast("Makan %s  (+%d stamina)" % [String(info["name"]), gain], 1.6)
+	pop_stamina(gain)
+	refresh_backpack()
+
+
+func _on_bag_drop() -> void:
+	var info := GameState.slot_info(_bag_sel_zone, _bag_sel_index)
+	if info.is_empty():
+		return
+	if not bool(info["discardable"]):
+		toast("Alat tidak bisa dibuang.", 1.4)
+		return
+	if GameState.discard_one(_bag_sel_zone, _bag_sel_index):
+		toast("Dibuang 1 %s" % String(info["name"]), 1.2)
+		refresh_backpack()
+
+
 func is_any_overlay_open() -> bool:
 	return is_confirm_open() or is_dialogue_open() or is_quest_complete_open() \
-		or is_shop_open() or is_fishing()
+		or is_shop_open() or is_fishing() or is_backpack_open()
 
 
 func is_shop_open() -> bool:
@@ -976,32 +1319,12 @@ func refresh_hotbar(items: Array[Dictionary], selected: int) -> void:
 		if i >= items.size():
 			continue
 		var item: Dictionary = items[i]
-		var tex: Texture2D = null
-		var tint := Color.WHITE
-		var count_text := ""
-		match String(item.get("type", "")):
-			"tool":
-				match String(item.get("tool", "")):
-					"hoe": tex = ICON_HOE
-					"water": tex = ICON_WATER
-					"axe": tex = ICON_AXE
-					"pickaxe": tex = ICON_PICKAXE
-					"rod": tex = ICON_ROD
-					_: tex = ICON_HOE
-			"seed":
-				tex = ICON_SEEDS
-				tint = SEED_TINTS.get(String(item.get("crop", "")), Color.WHITE)
-				count_text = "x%d" % int(item.get("count", 0))
-			"produce":
-				var crop := String(item.get("crop", ""))
-				var amount := int(item.get("count", 0))
-				if crop != "" and amount > 0:
-					tex = _produce_icon(crop)
-				count_text = ("x%d" % amount) if amount > 0 else ""
-		_slot_icons[i].texture = tex
-		_slot_icons[i].modulate = tint
-		_slot_counts[i].text = count_text
-		_slot_counts[i].modulate = Color(1, 1, 1, 1) if int(item.get("count", 1)) > 0 else Color(1, 1, 1, 0.4)
+		var vis := _slot_visual(item)
+		_slot_icons[i].texture = vis["texture"]
+		_slot_icons[i].modulate = vis["tint"]
+		_slot_counts[i].text = String(vis["count"])
+		_slot_counts[i].modulate = Color(1, 1, 1, 1) if int(item.get("count", 1)) > 0 \
+			else Color(1, 1, 1, 0.4)
 		var is_sel := (i == selected)
 		_slot_bgs[i].texture = _compose_box("w_" if is_sel else "lt_")
 		_slot_bgs[i].modulate = GOLD if is_sel else Color.WHITE
@@ -1010,6 +1333,102 @@ func refresh_hotbar(items: Array[Dictionary], selected: int) -> void:
 		_item_name.text = _display_name(items[selected])
 	else:
 		_item_name.text = ""
+
+
+## Repaints the backpack panel (15 slots + the 5 hotbar slots inside it) and
+## the selected-item info column. Safe to call while the panel is closed.
+func refresh_backpack() -> void:
+	if _bag_root == null:
+		return
+	# A stack that ran out (eaten / discarded / sold) drops the selection.
+	if _bag_sel_index >= 0 and GameState.is_slot_empty(
+			GameState.get_slot(_bag_sel_zone, _bag_sel_index)):
+		_bag_sel_zone = ""
+		_bag_sel_index = -1
+
+	for i in _bag_slot_bgs.size():
+		var item: Dictionary = GameState.get_slot("backpack", i)
+		var is_sel := _bag_sel_zone == "backpack" and _bag_sel_index == i
+		_paint_bag_slot(_bag_slot_bgs[i], _bag_slot_icons[i],
+			_bag_slot_counts[i], item, is_sel)
+
+	for i in _bag_hot_bgs.size():
+		var item: Dictionary = GameState.hotbar[i]
+		var is_sel := _bag_sel_zone == "hotbar" and _bag_sel_index == i
+		_paint_bag_slot(_bag_hot_bgs[i], _bag_hot_icons[i],
+			_bag_hot_counts[i], item, is_sel)
+
+	_refresh_bag_info()
+
+
+func _paint_bag_slot(bg: NinePatchRect, icon: TextureRect, count: Label,
+		item: Dictionary, is_sel: bool) -> void:
+	var vis := _slot_visual(item)
+	icon.texture = vis["texture"]
+	icon.modulate = vis["tint"]
+	count.text = String(vis["count"])
+	bg.texture = _compose_box("w_" if is_sel else "lt_")
+	bg.modulate = GOLD if is_sel else Color.WHITE
+
+
+func _refresh_bag_info() -> void:
+	if _bag_info_name == null:
+		return
+	var info: Dictionary = {}
+	if _bag_sel_index >= 0:
+		info = GameState.slot_info(_bag_sel_zone, _bag_sel_index)
+	if info.is_empty():
+		_bag_info_icon.texture = null
+		_bag_info_icon.modulate = Color.WHITE
+		_bag_info_name.text = "Pilih item"
+		_bag_info_sell.text = "Jual: -"
+		_bag_info_stam.text = "Stamina: -"
+		_bag_eat_btn.disabled = true
+		_bag_drop_btn.disabled = true
+		return
+	var item: Dictionary = GameState.get_slot(_bag_sel_zone, _bag_sel_index)
+	var vis := _slot_visual(item)
+	_bag_info_icon.texture = vis["texture"]
+	_bag_info_icon.modulate = vis["tint"]
+	var label := String(info["name"])
+	if String(info["type"]) != "tool" and int(info["count"]) > 0:
+		label += " x%d" % int(info["count"])
+	_bag_info_name.text = label
+	_bag_info_sell.text = "Jual: %d G" % int(info["sell"]) if int(info["sell"]) > 0 \
+		else "Jual: -"
+	_bag_info_stam.text = "Stamina: +%d" % int(info["stamina"]) if bool(info["edible"]) \
+		else "Stamina: -"
+	_bag_eat_btn.disabled = not bool(info["edible"])
+	_bag_drop_btn.disabled = not bool(info["discardable"])
+
+
+## Icon / tint / count text for any inventory slot. Shared by the hotbar and
+## the backpack so both always render the same item the same way.
+func _slot_visual(item: Dictionary) -> Dictionary:
+	var tex: Texture2D = null
+	var tint := Color.WHITE
+	var count_text := ""
+	match String(item.get("type", "")):
+		"tool":
+			match String(item.get("tool", "")):
+				"hoe": tex = ICON_HOE
+				"water": tex = ICON_WATER
+				"axe": tex = ICON_AXE
+				"pickaxe": tex = ICON_PICKAXE
+				"rod": tex = ICON_ROD
+				_: tex = ICON_HOE
+		"seed":
+			tex = ICON_SEEDS
+			tint = SEED_TINTS.get(String(item.get("crop", "")), Color.WHITE)
+			var seeds := int(item.get("count", 0))
+			count_text = ("x%d" % seeds) if seeds > 0 else ""
+		"produce":
+			var crop := String(item.get("crop", ""))
+			var amount := int(item.get("count", 0))
+			if crop != "" and amount > 0:
+				tex = _produce_icon(crop)
+			count_text = ("x%d" % amount) if amount > 0 else ""
+	return {"texture": tex, "tint": tint, "count": count_text}
 
 
 func show_prompt(text: String, anchor := Vector2.INF) -> void:
@@ -1234,6 +1653,7 @@ func _on_day_signal(new_day: int) -> void:
 
 func _on_inventory_signal() -> void:
 	refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+	refresh_backpack()
 
 
 func _on_quest_signal() -> void:

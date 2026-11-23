@@ -336,11 +336,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F:
 				_game.eat_selected()
 				get_viewport().set_input_as_handled()
-			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9:
+			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5:
 				_game.select_slot(event.keycode - KEY_1)
-				get_viewport().set_input_as_handled()
-			KEY_0:
-				_game.select_slot(9)
 				get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed:
 		if input_locked:

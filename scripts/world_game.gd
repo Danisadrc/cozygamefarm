@@ -245,7 +245,8 @@ func _refresh_prompt() -> void:
 	var want := ""
 	var anchor := Vector2.INF
 	var blocked: bool = busy or shop_open or fishing_active or player.is_busy() \
-		or hud.is_confirm_open() or hud.is_dialogue_open() or hud.is_quest_complete_open()
+		or hud.is_confirm_open() or hud.is_dialogue_open() or hud.is_quest_complete_open() \
+		or hud.is_backpack_open()
 	if not blocked:
 		want = _prompt_for(player.current_zone)
 		if want != "":
@@ -321,10 +322,21 @@ func cycle_slot(step: int) -> void:
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
 
 
+## Called by the HUD when the backpack panel opens or closes: movement and
+## world clicks are locked while the bag is in front of the player.
+func on_backpack_toggled(open: bool) -> void:
+	if player != null:
+		player.input_locked = open
+	_last_prompt = ""
+	_refresh_prompt()
+
+
 # ================================================================ interaction
 
 func interact(zone: String) -> void:
 	if busy or shop_open or (player != null and player.is_busy()):
+		return
+	if hud != null and hud.is_backpack_open():
 		return
 	if zone == "":
 		# Plain grass: [E] tends / harvests the closest animal.
@@ -436,6 +448,8 @@ func _resume_free_play() -> void:
 func use_tool(cell: Vector2i) -> void:
 	if busy or shop_open or player == null or player.is_busy():
 		return
+	if hud != null and hud.is_backpack_open():
+		return
 	var item: Dictionary = GameState.get_selected()
 	var tool := String(item.get("tool", ""))
 	if tool == "axe" or tool == "pickaxe":
@@ -467,6 +481,8 @@ func _play_soil_sfx(item: Dictionary, tool: String) -> void:
 
 func mouse_action(mouse_world: Vector2) -> void:
 	if busy or shop_open or player == null or player.is_busy():
+		return
+	if hud != null and hud.is_backpack_open():
 		return
 	if mouse_world.distance_to(player.global_position) > CLICK_RANGE:
 		hud.toast("Terlalu jauh - dekati dulu.")
@@ -568,30 +584,26 @@ func _spend_stamina(amount: int) -> bool:
 	return true
 
 
-## F key: eat the selected produce / fish / egg for +20 stamina.
+## F key: eat the selected produce / fish / egg for stamina.
 func eat_selected() -> void:
 	if busy or shop_open or player == null or player.is_busy():
+		return
+	if hud != null and hud.is_backpack_open():
 		return
 	var item: Dictionary = GameState.get_selected()
 	if String(item.get("type", "")) != "produce" or int(item.get("count", 0)) <= 0:
 		hud.toast("Pegang hasil panen / ikan lalu tekan F untuk makan.")
 		return
 	var crop := String(item.get("crop", ""))
-	if crop == "":
+	if crop == "" or GameState.eat_gain(item) <= 0:
 		hud.toast("Tidak ada yang bisa dimakan.")
 		return
 	if GameState.stamina >= GameState.MAX_STAMINA:
 		hud.toast("Stamina sudah penuh.")
 		return
-	item["count"] = int(item["count"]) - 1
-	if int(item["count"]) <= 0:
-		item["crop"] = ""
-		item["name"] = ""
-	var gain := DataRegistry.item_stamina(crop)
+	var gain := GameState.eat_slot("hotbar", GameState.selected_slot)
 	if gain <= 0:
-		gain = 20
-	GameState.restore_stamina(gain)
-	GameState.inventory_changed.emit()
+		return
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
 	hud.toast("Makan %s  (+%d stamina)" % [_item_label(crop), gain], 1.6)
 	hud.pop_stamina(gain)
@@ -871,15 +883,17 @@ func close_shop() -> void:
 func buy_seed(id: String) -> void:
 	if not shop_open:
 		return
+	if not GameState.can_add_seed(id):
+		hud.toast("Tas penuh! Jual hasil panen dulu.")
+		return
 	var price := DataRegistry.crop_seed_price(id)
 	if not GameState.spend_gold(price):
 		hud.toast("Gold tidak cukup untuk membeli bibit ini.")
 		return
-	var slot := GameState.find_or_add_seed(id)
-	if slot == -1:
+	if not GameState.add_seed(id, 1):
+		GameState.add_gold(price)
 		hud.toast("Tidak ada slot kosong untuk bibit!")
 		return
-	GameState.hotbar[slot]["count"] = int(GameState.hotbar[slot]["count"]) + 1
 	GameState.inventory_changed.emit()
 	hud.set_gold(GameState.gold)
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
