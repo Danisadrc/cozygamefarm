@@ -87,6 +87,7 @@ var _bar_green: Texture2D
 var _bar_yellow: Texture2D
 var _bar_red: Texture2D
 var _item_name: Label
+var _hotbar_bar: Control
 var _slot_bgs: Array[NinePatchRect] = []
 var _slot_icons: Array[TextureRect] = []
 var _slot_counts: Array[Label] = []
@@ -440,6 +441,7 @@ func _build_hotbar() -> void:
 	bar.offset_top = -50
 	bar.offset_bottom = -14
 	add_child(bar)
+	_hotbar_bar = bar
 
 	for i in GameState.MAX_SLOTS:
 		var slot := Control.new()
@@ -815,14 +817,16 @@ func _build_dialogue() -> void:
 	_dialog_root.visible = false
 	add_child(_dialog_root)
 
-	# Sunnyside 9-slice box pinned above the hotbar so it never covers the
-	# inventory slots or the held-item name.
-	var panel := _make_box("dt_", Vector2(528, 96))
+	# Sunnyside 9-slice box pinned to the very bottom edge. The hotbar is hidden
+	# while this is open, so the dialogue never covers the middle of the screen
+	# and its text always stays inside the panel.
+	var panel := _make_box("dt_", Vector2(568, 130))
 	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	panel.offset_left = 56
-	panel.offset_right = -56
-	panel.offset_top = -196
-	panel.offset_bottom = -76
+	panel.offset_left = 36
+	panel.offset_right = -36
+	panel.offset_top = -136
+	panel.offset_bottom = -6
+	panel.clip_contents = true
 	_dialog_root.add_child(panel)
 
 	var margin := MarginContainer.new()
@@ -851,6 +855,7 @@ func _build_dialogue() -> void:
 
 	_dialog_text = _label("", 10, CREAM)
 	_dialog_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dialog_text.clip_text = true
 	_dialog_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_dialog_text.custom_minimum_size = Vector2(0, 38)
 	box.add_child(_dialog_text)
@@ -900,6 +905,7 @@ func open_dialogue(speaker: String, text: String, hearts := -1,
 	_dialog_gift_btn.visible = gift_name != ""
 	_dialog_order_label = order_label
 	_dialog_order_btn.visible = order_label != ""
+	_set_hotbar_visible(false)
 	_dialog_root.visible = true
 	_dialog_root.modulate.a = 0.0
 	var tw := create_tween()
@@ -938,6 +944,16 @@ func close_dialogue() -> void:
 	_dialog_open = false
 	if _dialog_root != null:
 		_dialog_root.visible = false
+	_set_hotbar_visible(true)
+
+
+## The hotbar steps aside while a dialogue is on screen so the box can sit at
+## the very bottom without covering the inventory.
+func _set_hotbar_visible(visible: bool) -> void:
+	if _hotbar_bar != null:
+		_hotbar_bar.visible = visible
+	if _item_name != null:
+		_item_name.visible = visible and not is_shop_open()
 
 
 func is_dialogue_open() -> bool:

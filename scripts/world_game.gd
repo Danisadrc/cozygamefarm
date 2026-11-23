@@ -436,7 +436,8 @@ func _open_quest_board() -> void:
 	hud.open_dialogue(speaker, _quest_board_text(), -1, "", _quest_board_order_label())
 
 
-## The board's full body: active main quest, then today's side order.
+## The board's full body: active main quest, then today's side order. Kept to
+## four short lines so it always fits the bottom dialogue panel.
 func _quest_board_text() -> String:
 	var lines: Array[String] = []
 	if GameState.quest_done:
@@ -445,19 +446,18 @@ func _quest_board_text() -> String:
 		var quest := GameState.current_quest()
 		var reward := GameState.quest_reward()
 		var reward_text := "Renovasi Agung" if reward <= 0 else "%d G" % reward
-		lines.append("%s\n%s\nHadiah: %s"
-			% [String(quest.get("title", "")), GameState.quest_progress_text(),
-				reward_text])
+		lines.append(String(quest.get("title", "")))
+		lines.append("%s  •  Hadiah: %s"
+			% [GameState.quest_progress_text(), reward_text])
 
 	lines.append("")
-	lines.append("— Pesanan Harian —")
 	var order := GameState.daily_order_progress()
 	if order.is_empty():
-		lines.append("Belum ada pesanan hari ini.")
+		lines.append("Pesanan Harian: belum ada pesanan.")
 	elif bool(order["done"]):
-		lines.append("Pesanan hari ini sudah dikirim. Tidur untuk pesanan baru.")
+		lines.append("Pesanan Harian: sudah dikirim. Tidur untuk pesanan baru.")
 	else:
-		lines.append("Antar %d %s  (stok %d/%d)\nHadiah: +%d G"
+		lines.append("Pesanan Harian: antar %d %s (%d/%d) → +%d G"
 			% [int(order["qty"]), String(order["label"]), int(order["have"]),
 				int(order["qty"]), int(order["reward"])])
 	return "\n".join(lines)
