@@ -168,7 +168,49 @@ var items: Dictionary = {
 		"stamina": 0,
 		"icon": "rock.png",
 	},
+	# ------------------------------------------------------------ cooked food
+	# Category "food" items behave like produce in the inventory: they stack,
+	# can be eaten with [F] / the backpack, and sell at the Shipping Bin.
+	"omelette": {
+		"name": "Telur Dadar Desa",
+		"sell_price": 115,
+		"stamina": 60,
+		"icon": "egg.png",
+		"tint": Color(1.0, 0.82, 0.45),
+		"category": "food",
+		"recipe": {"egg": 1, "milk": 1},
+	},
+	"grilled_fish": {
+		"name": "Ikan Bakar Kolam",
+		"sell_price": 100,
+		"stamina": 55,
+		"icon": "fish.png",
+		"tint": Color(1.0, 0.66, 0.42),
+		"category": "food",
+		"recipe": {"fish": 1, "wood": 2},
+	},
+	"veggie_soup": {
+		"name": "Sup Sayur Hangat",
+		"sell_price": 140,
+		"stamina": 75,
+		"icon": "cabbage_05.png",
+		"tint": Color(0.94, 0.96, 0.58),
+		"category": "food",
+		"recipe": {"carrot": 1, "potato": 1, "cabbage": 1},
+	},
+	"sweet_bread": {
+		"name": "Roti Gandum Manis",
+		"sell_price": 95,
+		"stamina": 50,
+		"icon": "wheat_05.png",
+		"tint": Color(1.0, 0.80, 0.45),
+		"category": "food",
+		"recipe": {"wheat": 2, "milk": 1},
+	},
 }
+
+## Recipe order for the campfire panel (the dictionary alone has no UI order).
+const FOOD_ORDER := ["omelette", "grilled_fish", "veggie_soup", "sweet_bread"]
 
 # ---------------------------------------------------------------- helpers
 
@@ -247,6 +289,60 @@ func item_icon(id: String) -> Texture2D:
 	if file == "":
 		return null
 	return load(CROP_DIR + file)
+
+
+## Warm tint applied on top of a shared food sprite (see menu use in the HUD).
+func item_tint(id: String) -> Color:
+	var it: Dictionary = items.get(id, {})
+	var tint: Color = it.get("tint", Color.WHITE)
+	return tint
+
+
+func item_category(id: String) -> String:
+	var it: Dictionary = items.get(id, {})
+	return String(it.get("category", ""))
+
+
+func is_food(id: String) -> bool:
+	return item_category(id) == "food"
+
+
+## Every campfire recipe, in UI order:
+## {"id", "name", "ingredients": {item_id: qty}, "stamina", "sell"}.
+func get_food_recipes() -> Array:
+	var out: Array = []
+	for id in FOOD_ORDER:
+		var it: Dictionary = items.get(id, {})
+		if it.is_empty():
+			continue
+		out.append({
+			"id": id,
+			"name": String(it.get("name", id)),
+			"ingredients": it.get("recipe", {}),
+			"stamina": int(it.get("stamina", 0)),
+			"sell": int(it.get("sell_price", 0)),
+		})
+	return out
+
+
+func get_recipe(id: String) -> Dictionary:
+	var it: Dictionary = items.get(id, {})
+	if it.is_empty() or not it.has("recipe"):
+		return {}
+	return {
+		"id": id,
+		"name": String(it.get("name", id)),
+		"ingredients": it.get("recipe", {}),
+		"stamina": int(it.get("stamina", 0)),
+		"sell": int(it.get("sell_price", 0)),
+	}
+
+
+## Display name for a craft ingredient (crops and animal products alike).
+func ingredient_name(id: String) -> String:
+	if not get_crop(id).is_empty():
+		return crop_name(id)
+	return item_name(id)
 
 
 # ---------------------------------------------------------------- shop data

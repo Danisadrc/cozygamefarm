@@ -174,6 +174,22 @@ func _add_fire(pos: Vector2, node_name: String) -> void:
 	flame.z_index = 1
 	flame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	prop.add_child(flame)
+
+	# [E] Masak zone: an Area2D child, so it travels with the campfire and is
+	# picked up by world_player's whole-tree zone scan. No collider, so it can
+	# never block the pond bank.
+	var cook_zone := Area2D.new()
+	cook_zone.name = "CookZone"
+	cook_zone.position = Vector2(0, -2)
+	cook_zone.set_meta("interaction", "cook")
+	var cook_col := CollisionShape2D.new()
+	cook_col.name = "Shape"
+	var cook_rect := RectangleShape2D.new()
+	cook_rect.size = Vector2(44, 32)
+	cook_col.shape = cook_rect
+	cook_zone.add_child(cook_col)
+	prop.add_child(cook_zone)
+
 	_fires.append(prop)
 
 

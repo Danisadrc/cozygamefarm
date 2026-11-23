@@ -80,6 +80,21 @@ var _minute_accum := 0.0
 var gold := START_GOLD
 var stamina := MAX_STAMINA
 
+# ---------------------------------------------------------------- statistics
+# Lifetime gameplay counters (cooking / gifting), kept across sleeps and reset
+# only by GameState.reset().
+var cooked_count := 0
+var gifts_given := 0
+
+# ---------------------------------------------------------------- friendship
+# One 0..5 heart value per villager speaker name. `gift_day` stores the day of
+# the last accepted gift so each NPC only takes one present per day; comparing
+# it against the live `day` clears it automatically when morning comes.
+# `friendship_rewarded` remembers who already paid the first-time 3-heart bonus.
+var friendship_hearts: Dictionary = {}
+var gift_day: Dictionary = {}
+var friendship_rewarded: Dictionary = {}
+
 # ------------------------------------------------------------------ inventory
 # Each slot is a Dictionary:
 #   tool slot:    {"type": "tool", "tool": "hoe"|"water", "name": "Cangkul", "count": 0}
@@ -157,6 +172,12 @@ func reset() -> void:
 	quest_done = false
 	quest_counts.clear()
 	_quest_checking = false
+
+	cooked_count = 0
+	gifts_given = 0
+	friendship_hearts.clear()
+	gift_day.clear()
+	friendship_rewarded.clear()
 
 	# Tell any live UI (the HUD survives a scene change only in theory, but a
 	# reset from inside the world should still repaint everything).
@@ -490,6 +511,163 @@ func discard_one(zone: String, index: int) -> bool:
 		var slots := _zone_slots(zone)
 		slots[index] = _empty_slot()
 	inventory_changed.emit()
+	return true
+
+
+# ---------------------------------------------------------------- cooking
+
+## Total units of one produce / material id across the hotbar and backpack.
+func count_item(id: String) -> int:
+	var total := 0
+	for zone in ["hotbar", "backpack"]:
+		for slot in _zone_slots(zone):
+			if String(slot.get("type", "")) == "produce" \
+					and String(slot.get("crop", "")) == id:
+				total += int(slot.get("count", 0))
+	return total
+
+
+## Take `qty` units of an item out of the inventory (hotbar first).
+## Returns true when the whole amount was removed.
+func remove_item(id: String, qty: int) -> bool:
+	if qty <= 0:
+		return true
+	var remaining := qty
+	for zone in ["hotbar", "backpack"]:
+		var slots := _zone_slots(zone)
+		for i in slots.size():
+			var slot: Dictionary = slots[i]
+			if String(slot.get("type", "")) != "produce" \
+					or String(slot.get("crop", "")) != id:
+				continue
+			var have := int(slot.get("count", 0))
+			var take := mini(have, remaining)
+			if take <= 0:
+				continue
+			remaining -= take
+			slot["count"] = have - take
+			if int(slot["count"]) <= 0:
+				slots[i] = _empty_slot()
+			if remaining <= 0:
+				inventory_changed.emit()
+				return true
+	if remaining < qty:
+		inventory_changed.emit()
+	return false
+
+
+## True when every ingredient for a recipe is in the bag right now.
+func can_cook(recipe_id: String) -> bool:
+	var recipe := DataRegistry.get_recipe(recipe_id)
+	if recipe.is_empty():
+		return false
+	var ingredients: Dictionary = recipe.get("ingredients", {})
+	for id in ingredients.keys():
+		if count_item(String(id)) < int(ingredients[id]):
+			return false
+	return true
+
+
+## Consume the ingredients and put one cooked dish in the bag. Returns false
+## (leaving the inventory untouched) when the player is short of anything.
+func cook(recipe_id: String) -> bool:
+	var recipe := DataRegistry.get_recipe(recipe_id)
+	if recipe.is_empty():
+		return false
+	var ingredients: Dictionary = recipe.get("ingredients", {})
+	if not can_cook(recipe_id):
+		return false
+	for id in ingredients.keys():
+		remove_item(String(id), int(ingredients[id]))
+	if not add_item(recipe_id, DataRegistry.item_name(recipe_id)):
+		# The bag could not hold the dish: give the ingredients back.
+		for id in ingredients.keys():
+			add_item(String(id), DataRegistry.ingredient_name(String(id)),
+				int(ingredients[id]))
+		return false
+	cooked_count += 1
+	inventory_changed.emit()
+	return true
+
+
+# ---------------------------------------------------------------- gifting
+
+const GIFT_IDS := ["fish", "egg", "milk"]
+
+
+## Only harvests, animal products and cooked dishes are presentable.
+func is_giftable(item: Dictionary) -> bool:
+	if String(item.get("type", "")) != "produce" or int(item.get("count", 0)) <= 0:
+		return false
+	var id := String(item.get("crop", ""))
+	if id == "":
+		return false
+	if not DataRegistry.get_crop(id).is_empty():
+		return true
+	if id in GIFT_IDS:
+		return true
+	return DataRegistry.is_food(id)
+
+
+func item_display_name(id: String) -> String:
+	if not DataRegistry.get_crop(id).is_empty():
+		return DataRegistry.crop_name(id)
+	return DataRegistry.item_name(id)
+
+
+## The giftable item currently held in the selected hotbar slot, or {}.
+func selected_gift() -> Dictionary:
+	var item: Dictionary = get_selected()
+	if not is_giftable(item):
+		return {}
+	return {
+		"id": String(item.get("crop", "")),
+		"name": item_display_name(String(item.get("crop", ""))),
+	}
+
+
+## Remove one unit of the held gift. Returns {"id","name"} or {}.
+func consume_selected_gift() -> Dictionary:
+	var gift := selected_gift()
+	if gift.is_empty():
+		return {}
+	var item: Dictionary = get_selected()
+	item["count"] = int(item["count"]) - 1
+	if int(item["count"]) <= 0:
+		hotbar[selected_slot] = _empty_slot()
+	inventory_changed.emit()
+	return gift
+
+
+func hearts_for(name: String) -> int:
+	return clampi(int(friendship_hearts.get(name, 0)), 0, 5)
+
+
+## +1 heart, capped at five. Returns the new value.
+func add_heart(name: String) -> int:
+	var value := mini(hearts_for(name) + 1, 5)
+	friendship_hearts[name] = value
+	return value
+
+
+func gifted_today(name: String) -> bool:
+	return int(gift_day.get(name, -1)) == day
+
+
+func can_gift_today(name: String) -> bool:
+	return not gifted_today(name)
+
+
+func record_gift(name: String) -> void:
+	gift_day[name] = day
+	gifts_given += 1
+
+
+## True exactly once, when this NPC first reaches the 3-heart milestone.
+func claim_three_heart_reward(name: String) -> bool:
+	if hearts_for(name) < 3 or friendship_rewarded.has(name):
+		return false
+	friendship_rewarded[name] = true
 	return true
 
 

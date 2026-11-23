@@ -17,6 +17,7 @@ const CELL := Vector2i(96, 64)
 const SPRITE_OFFSET := Vector2(0, -6)
 
 const CHAT_TEX := "res://assets/ui/expression_chat.png"
+const LOVE_TEX := "res://assets/ui/expression_love.png"
 const BUBBLE_Y := -30.0
 
 var speaker_name := "Bu Sari"
@@ -112,6 +113,30 @@ func next_line() -> String:
 		return "..."
 	_line_i = (_line_i + 1) % lines.size()
 	return String(lines[_line_i])
+
+
+## Floating love/heart emote above the head, used when the player gives a gift.
+func show_emote(path := LOVE_TEX) -> void:
+	var tex: Texture2D = load(path)
+	if tex == null:
+		return
+	var emote := Sprite2D.new()
+	emote.name = "Emote"
+	emote.texture = tex
+	emote.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	emote.position = Vector2(0, BUBBLE_Y - 8.0)
+	emote.z_index = 12
+	emote.modulate.a = 0.0
+	emote.scale = Vector2(0.7, 0.7)
+	add_child(emote)
+
+	var tw := create_tween()
+	tw.tween_property(emote, "modulate:a", 1.0, 0.15)
+	tw.parallel().tween_property(emote, "scale", Vector2.ONE, 0.25)
+	tw.tween_interval(0.9)
+	tw.tween_property(emote, "position:y", emote.position.y - 8.0, 0.5)
+	tw.parallel().tween_property(emote, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(emote.queue_free)
 
 
 func _build_frames(prefix: String) -> SpriteFrames:

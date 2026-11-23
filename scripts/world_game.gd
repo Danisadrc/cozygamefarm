@@ -89,6 +89,8 @@ var fishing_active := false
 var _last_grown := 0
 var _last_products := 0
 var _last_prompt := ""
+## Villager currently being talked to, so a gift can reach the right emote.
+var _dialogue_npc: Node2D = null
 
 var _resources: Array = []   # Tree_* and Boulder_* nodes
 var _pond_center := Vector2.ZERO
@@ -213,7 +215,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	match event.keycode:
 		KEY_ESCAPE:
-			if hud != null and hud.is_dialogue_open():
+			if hud != null and hud.is_cooking_open():
+				_close_cooking()
+				get_viewport().set_input_as_handled()
+			elif hud != null and hud.is_dialogue_open():
 				_close_dialogue()
 				get_viewport().set_input_as_handled()
 			elif hud != null and hud.is_confirm_open():
@@ -227,6 +232,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			# that closes it has to be caught here instead of in world_player.
 			if hud != null and hud.is_dialogue_open():
 				_close_dialogue()
+				get_viewport().set_input_as_handled()
+			elif hud != null and hud.is_cooking_open():
+				_close_cooking()
 				get_viewport().set_input_as_handled()
 
 
@@ -246,7 +254,7 @@ func _refresh_prompt() -> void:
 	var anchor := Vector2.INF
 	var blocked: bool = busy or shop_open or fishing_active or player.is_busy() \
 		or hud.is_confirm_open() or hud.is_dialogue_open() or hud.is_quest_complete_open() \
-		or hud.is_backpack_open()
+		or hud.is_backpack_open() or hud.is_cooking_open()
 	if not blocked:
 		want = _prompt_for(player.current_zone)
 		if want != "":
@@ -281,6 +289,9 @@ func _zone_anchor(zone: String) -> Vector2:
 		"quest":
 			if quest_board != null:
 				return quest_board.global_position + Vector2(0, -50)
+		"cook":
+			if player != null and player.current_zone_area != null:
+				return player.current_zone_area.get_parent().global_position + Vector2(0, -26)
 	return Vector2.INF
 
 
@@ -309,6 +320,8 @@ func _prompt_for(zone: String) -> String:
 			return "[E] Sapa"
 		"quest":
 			return "[E] Papan Misi"
+		"cook":
+			return "[E] Masak"
 	return ""
 
 
@@ -338,6 +351,8 @@ func interact(zone: String) -> void:
 		return
 	if hud != null and hud.is_backpack_open():
 		return
+	if hud != null and hud.is_cooking_open():
+		return
 	if zone == "":
 		# Plain grass: [E] tends / harvests the closest animal.
 		if livestock != null:
@@ -356,6 +371,8 @@ func interact(zone: String) -> void:
 			_talk_npc()
 		"quest":
 			_open_quest_board()
+		"cook":
+			_open_cooking()
 
 
 # ================================================================ villagers / quest board
@@ -365,9 +382,11 @@ func _talk_villager() -> void:
 		player.input_locked = true
 	hud.hide_prompt()
 	var who := "Warga"
+	_dialogue_npc = villager
 	if villager != null:
 		who = String(villager.speaker_name)
-	hud.open_dialogue(who, _villager_text())
+	hud.open_dialogue(who, _villager_text(), GameState.hearts_for(who),
+		_gift_option(who))
 
 
 func _talk_npc() -> void:
@@ -377,7 +396,18 @@ func _talk_npc() -> void:
 	if player != null:
 		player.input_locked = true
 	hud.hide_prompt()
-	hud.open_dialogue(String(npc.speaker_name), String(npc.next_line()))
+	_dialogue_npc = npc
+	var who := String(npc.speaker_name)
+	hud.open_dialogue(who, String(npc.next_line()), GameState.hearts_for(who),
+		_gift_option(who))
+
+
+## Name of the held gift when this NPC still accepts one today, else "".
+func _gift_option(who: String) -> String:
+	if GameState.gifted_today(who):
+		return ""
+	var gift := GameState.selected_gift()
+	return String(gift.get("name", ""))
 
 
 func _villager_text() -> String:
@@ -415,10 +445,95 @@ func _close_dialogue() -> void:
 	if hud == null:
 		return
 	hud.close_dialogue()
+	_dialogue_npc = null
 	if player != null and not busy:
 		player.input_locked = false
 	_last_prompt = ""
 	_refresh_prompt()
+
+
+# ================================================================ campfire cooking
+
+func _open_cooking() -> void:
+	if hud == null:
+		return
+	hud.hide_prompt()
+	hud.open_cooking()
+
+
+func _close_cooking() -> void:
+	if hud == null:
+		return
+	hud.close_cooking()
+
+
+## Called by the HUD when the cooking panel opens or closes so movement and
+## world clicks stay locked behind the 9-slice panel.
+func on_cooking_toggled(open: bool) -> void:
+	if player != null:
+		player.input_locked = open
+	_last_prompt = ""
+	_refresh_prompt()
+
+
+## HUD "Masak" button -> consume ingredients, add the dish, play the fire SFX.
+func cook_recipe(id: String) -> bool:
+	if not GameState.can_cook(id):
+		hud.toast("Bahan belum cukup untuk resep ini.", 1.6)
+		return false
+	if not GameState.cook(id):
+		hud.toast("Tas penuh! Jual dulu hasil panen di Shipping Bin.", 1.8)
+		return false
+	SfxPlayer.play("water")
+	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+	hud.toast("%s siap disantap! (total masak: %d)"
+		% [DataRegistry.item_name(id), GameState.cooked_count], 1.8)
+	return true
+
+
+# ================================================================ gifts
+
+## HUD "Beri Hadiah" button. Consumes the held harvest / product / dish, gives
+## one heart, shows the love emote, and pays the first-time 3-heart bonus.
+func give_gift(who: String) -> void:
+	if not GameState.can_gift_today(who):
+		hud.toast("%s sudah menerima hadiah hari ini." % who, 1.6)
+		return
+	var gift := GameState.consume_selected_gift()
+	if gift.is_empty():
+		hud.toast("Pegang hasil panen, ikan, telur, susu, atau masakan dulu.", 1.8)
+		return
+	GameState.record_gift(who)
+	var hearts := GameState.add_heart(who)
+	SfxPlayer.play("coin")
+	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+
+	var npc := _npc_by_name(who)
+	if npc != null and npc.has_method("show_emote"):
+		npc.show_emote()
+
+	var bonus := false
+	if hearts >= 3 and GameState.claim_three_heart_reward(who):
+		GameState.add_gold(75)
+		bonus = true
+		hud.pop_gold(75)
+
+	var msg := "%s menyukai %s!  ♥ %d/5" % [who, String(gift["name"]), hearts]
+	if bonus:
+		msg += "  Hadiah balik +75 G!"
+	hud.toast(msg, 2.4)
+	hud.set_dialogue_gift(hearts, _gift_option(who))
+
+
+func _npc_by_name(who: String) -> Node2D:
+	if villager != null and String(villager.speaker_name) == who:
+		return villager
+	for npc in npcs:
+		if is_instance_valid(npc) and String(npc.speaker_name) == who:
+			return npc
+	if _dialogue_npc != null and is_instance_valid(_dialogue_npc):
+		return _dialogue_npc
+	return null
 
 
 # ================================================================ quests
@@ -610,13 +725,9 @@ func eat_selected() -> void:
 
 
 func _item_label(id: String) -> String:
-	match id:
-		"fish": return "Ikan"
-		"wood": return "Kayu"
-		"rock": return "Batu"
-		"egg": return "Telur"
-		"milk": return "Susu"
-	return DataRegistry.crop_name(id)
+	if not DataRegistry.get_crop(id).is_empty():
+		return DataRegistry.crop_name(id)
+	return DataRegistry.item_name(id)
 
 
 # ================================================================ gathering (axe / pickaxe)

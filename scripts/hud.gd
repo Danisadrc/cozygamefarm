@@ -110,8 +110,16 @@ var _quest_goals: VBoxContainer
 # Villager / quest-board dialogue (bottom 9-slice box)
 var _dialog_root: Control
 var _dialog_speaker: Label
+var _dialog_hearts: Label
 var _dialog_text: Label
+var _dialog_gift_btn: Button
+var _dialog_gift_name := ""
 var _dialog_open := false
+
+# "Dapur Api Unggun" campfire cooking panel
+var _cook_root: Control
+var _cook_rows: VBoxContainer
+var _cook_body: Label
 
 # "Desa Berhasil Renovasi!" demo-complete screen
 var _complete_root: Control
@@ -168,6 +176,7 @@ func _ready() -> void:
 	_build_confirm()
 	_build_shop()
 	_build_dialogue()
+	_build_cooking()
 	_build_quest_complete()
 	_build_toast()
 	_build_fade()
@@ -787,7 +796,7 @@ func _build_dialogue() -> void:
 	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	panel.offset_left = 56
 	panel.offset_right = -56
-	panel.offset_top = -178
+	panel.offset_top = -196
 	panel.offset_bottom = -76
 	_dialog_root.add_child(panel)
 
@@ -801,9 +810,19 @@ func _build_dialogue() -> void:
 	box.add_theme_constant_override("separation", 2)
 	margin.add_child(box)
 
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 6)
+	box.add_child(head)
+
 	_dialog_speaker = _label("Warga", 11, GOLD)
+	_dialog_speaker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_outline(_dialog_speaker, 3)
-	box.add_child(_dialog_speaker)
+	head.add_child(_dialog_speaker)
+
+	_dialog_hearts = _label("", 11, Color8(255, 128, 154))
+	_dialog_hearts.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_outline(_dialog_hearts, 3)
+	head.add_child(_dialog_hearts)
 
 	_dialog_text = _label("", 10, CREAM)
 	_dialog_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -811,22 +830,63 @@ func _build_dialogue() -> void:
 	_dialog_text.custom_minimum_size = Vector2(0, 38)
 	box.add_child(_dialog_text)
 
+	var foot := HBoxContainer.new()
+	foot.add_theme_constant_override("separation", 8)
+	box.add_child(foot)
+
+	_dialog_gift_btn = _pause_button("Beri Hadiah", _on_dialog_gift)
+	_dialog_gift_btn.tooltip_text = "Hadiahkan item yang sedang dipegang"
+	_dialog_gift_btn.custom_minimum_size = Vector2(104, 22)
+	_dialog_gift_btn.visible = false
+	foot.add_child(_dialog_gift_btn)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	foot.add_child(spacer)
+
 	var hint := _label("[E] / [Esc] Tutup", 8, MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	box.add_child(hint)
+	foot.add_child(hint)
 
 
-func open_dialogue(speaker: String, text: String) -> void:
+## Heart string for the dialogue header: "♥♥♡♡♡".
+func hearts_text(hearts: int) -> String:
+	var filled := clampi(hearts, 0, 5)
+	return "♥".repeat(filled) + "♡".repeat(5 - filled)
+
+
+func open_dialogue(speaker: String, text: String, hearts := -1,
+		gift_name := "") -> void:
 	if _toast_tween != null:
 		_toast_tween.kill()
 	_toast.modulate.a = 0.0
 	_dialog_speaker.text = speaker
 	_dialog_text.text = text
+	_dialog_hearts.text = hearts_text(hearts) if hearts >= 0 else ""
+	_dialog_hearts.visible = hearts >= 0
+	_dialog_gift_name = gift_name
+	_dialog_gift_btn.visible = gift_name != ""
 	_dialog_root.visible = true
 	_dialog_root.modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_property(_dialog_root, "modulate:a", 1.0, 0.12)
 	_dialog_open = true
+
+
+## Repaint the header hearts / gift button after a gift was accepted.
+func set_dialogue_gift(hearts: int, gift_name := "") -> void:
+	if _dialog_hearts != null:
+		_dialog_hearts.text = hearts_text(hearts)
+		_dialog_hearts.visible = true
+	_dialog_gift_name = gift_name
+	if _dialog_gift_btn != null:
+		_dialog_gift_btn.visible = gift_name != ""
+
+
+func _on_dialog_gift() -> void:
+	if game != null and _dialog_gift_name != "":
+		game.give_gift(_dialog_gift_name)
 
 
 func close_dialogue() -> void:
@@ -837,6 +897,157 @@ func close_dialogue() -> void:
 
 func is_dialogue_open() -> bool:
 	return _dialog_open
+
+
+# ------------------------------------------------------------------ cooking
+
+## "Dapur Api Unggun": four recipes, live ingredient stock, one Masak button each.
+func _build_cooking() -> void:
+	_cook_root = Control.new()
+	_cook_root.name = "Cooking"
+	_cook_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_cook_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_cook_root.visible = false
+	add_child(_cook_root)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.04, 0.03, 0.02, 0.66)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_cook_root.add_child(dim)
+
+	var panel := _make_box("dt_", Vector2(456, 300))
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -228
+	panel.offset_right = 228
+	panel.offset_top = -150
+	panel.offset_bottom = 150
+	_cook_root.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 14)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 5)
+	margin.add_child(box)
+
+	var title_row := HBoxContainer.new()
+	box.add_child(title_row)
+	var title := _label("Dapur Api Unggun", 17, GOLD)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_outline(title, 4)
+	title_row.add_child(title)
+	var close := _pause_button("Tutup", close_cooking)
+	close.custom_minimum_size = Vector2(54, 22)
+	title_row.add_child(close)
+
+	_cook_body = _label(
+		"Masak hasil ladang dan ternak. Bahan diambil dari tas; masakan bisa dimakan [F] atau dijual.",
+		9, MUTED)
+	_cook_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_cook_body)
+
+	box.add_child(HSeparator.new())
+
+	_cook_rows = VBoxContainer.new()
+	_cook_rows.add_theme_constant_override("separation", 4)
+	box.add_child(_cook_rows)
+
+	var hint := _label("[E] / [Esc] Tutup", 8, MUTED)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(hint)
+
+
+func refresh_cooking() -> void:
+	if _cook_rows == null:
+		return
+	for child in _cook_rows.get_children():
+		_cook_rows.remove_child(child)
+		child.queue_free()
+
+	for recipe in DataRegistry.get_food_recipes():
+		var id := String(recipe["id"])
+		var ingredients: Dictionary = recipe.get("ingredients", {})
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 7)
+		_cook_rows.add_child(row)
+
+		var icon := _icon(_produce_icon(id), 22)
+		icon.modulate = DataRegistry.item_tint(id)
+		row.add_child(icon)
+
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.add_theme_constant_override("separation", 0)
+		row.add_child(col)
+
+		var name := _label("%s  +%d stamina" % [String(recipe["name"]),
+			int(recipe["stamina"])], 11, CREAM)
+		_outline(name, 3)
+		col.add_child(name)
+
+		var parts: Array[String] = []
+		var enough := true
+		for ing in ingredients.keys():
+			var have := GameState.count_item(String(ing))
+			var need := int(ingredients[ing])
+			if have < need:
+				enough = false
+			parts.append("%s %d/%d" % [DataRegistry.ingredient_name(String(ing)),
+				have, need])
+		var req := _label("Bahan: " + " • ".join(parts), 8,
+			STAM_GREEN if enough else Color8(236, 118, 118))
+		_outline(req, 3)
+		col.add_child(req)
+
+		var sell := _label("Jual %d G" % int(recipe["sell"]), 9, GOLD)
+		sell.custom_minimum_size = Vector2(58, 0)
+		sell.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		sell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(sell)
+
+		var btn := _pause_button("Masak", _on_cook_pressed.bind(id))
+		btn.custom_minimum_size = Vector2(58, 22)
+		btn.disabled = not GameState.can_cook(id)
+		row.add_child(btn)
+
+
+func _on_cook_pressed(id: String) -> void:
+	if game != null and game.cook_recipe(id):
+		refresh_cooking()
+
+
+func open_cooking() -> void:
+	if _cook_root == null or _cook_root.visible:
+		return
+	if is_any_overlay_open():
+		return
+	if _toast_tween != null:
+		_toast_tween.kill()
+	_toast.modulate.a = 0.0
+	refresh_cooking()
+	_cook_root.visible = true
+	_cook_root.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(_cook_root, "modulate:a", 1.0, 0.12)
+	SfxPlayer.play("pet")
+	if game != null and game.has_method("on_cooking_toggled"):
+		game.on_cooking_toggled(true)
+
+
+func close_cooking() -> void:
+	if _cook_root == null or not _cook_root.visible:
+		return
+	_cook_root.visible = false
+	if game != null and game.has_method("on_cooking_toggled"):
+		game.on_cooking_toggled(false)
+
+
+func is_cooking_open() -> bool:
+	return _cook_root != null and _cook_root.visible
 
 
 func _build_quest_complete() -> void:
@@ -1098,6 +1309,10 @@ func _input(event: InputEvent) -> void:
 	if not key.pressed or key.echo:
 		return
 	if key.keycode == KEY_ESCAPE:
+		if is_cooking_open():
+			close_cooking()
+			get_viewport().set_input_as_handled()
+			return
 		if is_backpack_open():
 			close_backpack()
 			get_viewport().set_input_as_handled()
@@ -1220,7 +1435,7 @@ func _on_bag_drop() -> void:
 
 func is_any_overlay_open() -> bool:
 	return is_confirm_open() or is_dialogue_open() or is_quest_complete_open() \
-		or is_shop_open() or is_fishing() or is_backpack_open()
+		or is_shop_open() or is_fishing() or is_backpack_open() or is_cooking_open()
 
 
 func is_shop_open() -> bool:
@@ -1427,6 +1642,8 @@ func _slot_visual(item: Dictionary) -> Dictionary:
 			var amount := int(item.get("count", 0))
 			if crop != "" and amount > 0:
 				tex = _produce_icon(crop)
+				if DataRegistry.is_food(crop):
+					tint = DataRegistry.item_tint(crop)
 			count_text = ("x%d" % amount) if amount > 0 else ""
 	return {"texture": tex, "tint": tint, "count": count_text}
 
@@ -1716,6 +1933,9 @@ func pop_stamina(amount: int) -> void:
 # ------------------------------------------------------------------ helpers
 
 func _produce_icon(crop: String) -> Texture2D:
+	if DataRegistry.is_food(crop):
+		var item := DataRegistry.get_item(crop)
+		return _load_texture(CROP_DIR + String(item.get("icon", "")))
 	match crop:
 		"fish": return ICON_FISH
 		"wood": return ICON_WOOD
@@ -1746,13 +1966,9 @@ func _display_name(item: Dictionary) -> String:
 
 
 func _item_label(id: String) -> String:
-	match id:
-		"fish": return "Ikan"
-		"wood": return "Kayu"
-		"rock": return "Batu"
-		"egg": return "Telur"
-		"milk": return "Susu"
-	return DataRegistry.crop_name(id)
+	if not DataRegistry.get_crop(id).is_empty():
+		return DataRegistry.crop_name(id)
+	return DataRegistry.item_name(id)
 
 
 func _on_slot_gui_input(event: InputEvent, index: int) -> void:
