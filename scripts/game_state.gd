@@ -270,6 +270,15 @@ func _next_day() -> void:
 	day_changed.emit(day)
 
 
+## Instantly move the clock (used by the F1 demo menu). The day, crops and
+## daily order are untouched, so this only changes the light and clock labels.
+func set_clock(hour_value: int, minute_value := 0) -> void:
+	hour = clampi(hour_value, 0, 23)
+	minute = clampi(minute_value, 0, MINUTES_PER_HOUR - 1)
+	_minute_accum = 0.0
+	hour_changed.emit(hour)
+
+
 ## Called by sleep zone interaction — fast-forwards to next morning.
 func sleep_until_morning() -> void:
 	hour = 6
@@ -1056,3 +1065,187 @@ func quest_hint() -> String:
 		4:
 			return "Renovasi agung dimulai! Kumpulkan 600 G, 15 kayu, dan 12 batu untuk membuat desa makmur."
 	return ""
+
+
+# ------------------------------------------------------------------ demo cheats
+
+## Demo helper: add exactly the missing stock for today's side order, nothing
+## more. The player still presses "Serahkan Pesanan" on the board to turn it in.
+func cheat_stock_daily_order() -> Dictionary:
+	if daily_order.is_empty():
+		return {}
+	var id := String(daily_order.get("id", ""))
+	var display := DataRegistry.ingredient_name(id)
+	var need := int(daily_order.get("qty", 1))
+	var have := count_item(id)
+	if daily_order_done:
+		return {"id": id, "label": display, "qty": need, "have": have,
+			"added": 0, "done": true}
+	var missing := maxi(need - have, 0)
+	var added := 0
+	if missing > 0 and add_item(id, display, missing):
+		added = missing
+	return {
+		"id": id,
+		"label": display,
+		"qty": need,
+		"have": count_item(id),
+		"added": added,
+		"done": false,
+	}
+
+
+## Demo helper: stock every campfire recipe (two servings each) so the cooking
+## panel can be shown without gathering first. Returns what was added.
+func cheat_stock_cooking(multiplier := 2) -> Dictionary:
+	var need: Dictionary = {}
+	for recipe in DataRegistry.get_food_recipes():
+		var ingredients: Dictionary = recipe.get("ingredients", {})
+		for id in ingredients.keys():
+			need[id] = int(need.get(id, 0)) + int(ingredients[id]) * multiplier
+	var added: Dictionary = {}
+	var failed: Array[String] = []
+	for id in need.keys():
+		var item_id := String(id)
+		var missing := maxi(int(need[id]) - count_item(item_id), 0)
+		if missing <= 0:
+			continue
+		var display := DataRegistry.ingredient_name(item_id)
+		if add_item(item_id, display, missing):
+			added[item_id] = missing
+		else:
+			failed.append(display)
+	return {"added": added, "failed": failed}
+
+
+## Demo helper: satisfy the active main quest. Item goals receive only the
+## missing stock; harvest / cook / gift / upgrade goals record the matching
+## progress so the quest can advance immediately.
+func cheat_finish_current_quest() -> Dictionary:
+	if quest_done:
+		return {}
+	var q := current_quest()
+	if q.is_empty():
+		return {}
+	var before := quest_index
+	var title := String(q.get("title", ""))
+	var reward := int(q.get("reward", 0))
+	var goals: Dictionary = q.get("goals", {})
+	var added: Dictionary = {}
+	var failed: Array[String] = []
+	var gold_missing := 0
+	for kind in goals.keys():
+		if quest_done:
+			break
+		var goal := String(kind)
+		var need := int(goals[kind])
+		var have := mini(quest_goal_value(goal), need)
+		var missing := need - have
+		if missing <= 0:
+			continue
+		if goal == "gold":
+			gold_missing = maxi(gold_missing, missing)
+			continue
+		_cheat_grant_goal(goal, missing, added, failed)
+	if gold_missing > 0 and not quest_done:
+		add_gold(gold_missing)
+		added["gold"] = int(added.get("gold", 0)) + gold_missing
+	if not quest_done:
+		_check_quest()
+	return {
+		"title": title,
+		"before": before,
+		"after": quest_index,
+		"reward": reward,
+		"added": added,
+		"failed": failed,
+		"done": quest_done,
+	}
+
+
+## Demo helper: run cheat_finish_current_quest() until the 5-stage chain ends.
+func cheat_finish_all_quests() -> Dictionary:
+	var added: Dictionary = {}
+	var failed: Array[String] = []
+	var stages := 0
+	var safety := 0
+	while not quest_done and safety < QUESTS.size() + 2:
+		safety += 1
+		var before := quest_index
+		var result := cheat_finish_current_quest()
+		if result.is_empty():
+			break
+		stages += 1
+		_merge_cheat_counts(added, result.get("added", {}))
+		for label in result.get("failed", []):
+			if not failed.has(String(label)):
+				failed.append(String(label))
+		if quest_done or quest_index <= before:
+			break
+	return {
+		"stages": stages,
+		"added": added,
+		"failed": failed,
+		"done": quest_done,
+		"gold": gold,
+	}
+
+
+func _cheat_grant_goal(kind: String, amount: int, added: Dictionary,
+		failed: Array[String]) -> void:
+	match kind:
+		"harvest":
+			var crop := "carrot"
+			var crop_name := DataRegistry.crop_name(crop)
+			if add_item(crop, crop_name, amount):
+				added[crop] = int(added.get(crop, 0)) + amount
+			else:
+				failed.append(crop_name)
+			quest_event("harvest", amount)
+		"cook":
+			var dish := "omelette"
+			var dish_name := DataRegistry.item_name(dish)
+			var dish_missing := maxi(amount - count_item(dish), 0)
+			if dish_missing > 0:
+				if add_item(dish, dish_name, dish_missing):
+					added[dish] = int(added.get(dish, 0)) + dish_missing
+				else:
+					failed.append(dish_name)
+			cooked_count += amount
+			quest_event("cook", amount)
+		"gift":
+			var gift := "fish"
+			var gift_name := DataRegistry.item_name(gift)
+			var gift_missing := maxi(amount - count_item(gift), 0)
+			if gift_missing > 0:
+				if add_item(gift, gift_name, gift_missing):
+					added[gift] = int(added.get(gift, 0)) + gift_missing
+				else:
+					failed.append(gift_name)
+			gifts_given += amount
+			quest_event("gift", amount)
+		"upgrade":
+			var upgraded := 0
+			for tool in UPGRADABLE_TOOLS:
+				if upgraded >= amount:
+					break
+				if not tool_upgraded(String(tool)):
+					set_tool_level(String(tool), TOOL_MAX_LEVEL)
+					upgraded += 1
+			if upgraded > 0:
+				added["upgrade"] = int(added.get("upgrade", 0)) + upgraded
+			quest_event("upgrade", amount)
+		_:
+			var display := DataRegistry.ingredient_name(kind)
+			var missing := maxi(amount - count_item(kind), 0)
+			if missing > 0:
+				if add_item(kind, display, missing):
+					added[kind] = int(added.get(kind, 0)) + missing
+				else:
+					failed.append(display)
+			quest_event(kind, amount)
+
+
+func _merge_cheat_counts(target: Dictionary, source: Dictionary) -> void:
+	for key in source.keys():
+		target[key] = int(target.get(key, 0)) + int(source[key])

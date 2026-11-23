@@ -214,8 +214,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	match event.keycode:
+		KEY_F1:
+			_toggle_cheats()
+			get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
-			if hud != null and hud.is_cooking_open():
+			if hud != null and hud.is_cheat_open():
+				_close_cheats()
+				get_viewport().set_input_as_handled()
+			elif hud != null and hud.is_cooking_open():
 				_close_cooking()
 				get_viewport().set_input_as_handled()
 			elif hud != null and hud.is_dialogue_open():
@@ -254,7 +260,7 @@ func _refresh_prompt() -> void:
 	var anchor := Vector2.INF
 	var blocked: bool = busy or shop_open or fishing_active or player.is_busy() \
 		or hud.is_confirm_open() or hud.is_dialogue_open() or hud.is_quest_complete_open() \
-		or hud.is_backpack_open() or hud.is_cooking_open()
+		or hud.is_backpack_open() or hud.is_cooking_open() or hud.is_cheat_open()
 	if not blocked:
 		want = _prompt_for(player.current_zone)
 		if want != "":
@@ -351,7 +357,7 @@ func interact(zone: String) -> void:
 		return
 	if hud != null and hud.is_backpack_open():
 		return
-	if hud != null and hud.is_cooking_open():
+	if hud != null and (hud.is_cooking_open() or hud.is_cheat_open()):
 		return
 	if zone == "":
 		# Plain grass: [E] tends / harvests the closest animal.
@@ -753,6 +759,206 @@ func _on_day_changed(_new_day: int) -> void:
 	hud.set_day(GameState.day)
 	hud.set_gold(GameState.gold)
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+
+
+# ================================================================ demo cheats
+# F1 menu used during presentations. Nothing here is required to finish the
+# game; every helper adds only the items that the selected feature still needs.
+
+func _toggle_cheats() -> void:
+	if hud == null:
+		return
+	if hud.is_cheat_open():
+		_close_cheats()
+	else:
+		_open_cheats()
+
+
+func _open_cheats() -> void:
+	if hud == null or busy or shop_open or fishing_active:
+		return
+	if player != null and player.is_busy():
+		return
+	if hud.is_any_overlay_open():
+		return
+	hud.hide_prompt()
+	hud.open_cheats()
+	_last_prompt = ""
+	_refresh_prompt()
+
+
+func _close_cheats() -> void:
+	if hud == null:
+		return
+	hud.close_cheats()
+	_last_prompt = ""
+	_refresh_prompt()
+
+
+## HUD tells the world when the demo panel opens / closes so movement pauses
+## behind it, but the sky keeps animating so the time buttons are visible.
+func on_cheat_toggled(open: bool) -> void:
+	if player != null:
+		player.input_locked = open or busy \
+			or (hud != null and hud.is_quest_complete_open())
+	_last_prompt = ""
+	_refresh_prompt()
+
+
+func cheat_set_time(phase: String) -> void:
+	if hud == null:
+		return
+	var label := ""
+	match phase:
+		"pagi":
+			GameState.set_clock(7, 0)
+			label = "Pagi (07:00)"
+		"siang":
+			GameState.set_clock(13, 0)
+			label = "Siang (13:00)"
+		"sore":
+			GameState.set_clock(17, 30)
+			label = "Sore (17:30)"
+		"malam":
+			GameState.set_clock(21, 0)
+			label = "Malam (21:00)"
+		_:
+			return
+	SfxPlayer.play("pet")
+	hud.toast("Waktu diubah ke %s." % label, 1.8)
+	hud.set_cheat_status("Waktu sekarang: %s" % label)
+
+
+## "Selesaikan Misi Ini" / "Selesaikan Semua Misi".
+func cheat_finish_quest(all := false) -> void:
+	if hud == null:
+		return
+	if GameState.quest_done:
+		hud.toast("Semua misi sudah selesai. Cozy Valley Makmur!", 2.4)
+		hud.set_cheat_status("Semua misi sudah selesai.")
+		return
+	# Completing the last quest opens the victory screen, so get the panel out
+	# of the way first and let the ending play cleanly.
+	if all or GameState.quest_index >= GameState.QUESTS.size() - 1:
+		_close_cheats()
+	var result: Dictionary = GameState.cheat_finish_all_quests() if all \
+		else GameState.cheat_finish_current_quest()
+	_refresh_after_cheat()
+	if result.is_empty():
+		hud.toast("Misi tidak bisa diselesaikan sekarang.", 1.8)
+		return
+	SfxPlayer.play("coin")
+	var msg := ""
+	if all:
+		msg = "Semua misi selesai!" if bool(result.get("done", false)) \
+			else "Misi diselesaikan bertahap."
+	elif int(result.get("after", 0)) > int(result.get("before", 0)):
+		msg = "Misi %s selesai! +%d G" % [String(result.get("title", "")),
+			int(result.get("reward", 0))]
+	else:
+		msg = "Kebutuhan misi ditambahkan."
+	var added_text := _cheat_added_text(result.get("added", {}))
+	if added_text != "":
+		msg += " " + added_text
+	var failed: Array = result.get("failed", [])
+	if not failed.is_empty():
+		msg += " (tas penuh: %s)" % ", ".join(failed)
+	hud.toast(msg, 3.2)
+	hud.set_cheat_status(msg)
+
+
+## Add only the missing units of today's side order.
+func cheat_stock_daily_order() -> void:
+	if hud == null:
+		return
+	var result := GameState.cheat_stock_daily_order()
+	if result.is_empty():
+		hud.toast("Belum ada pesanan harian aktif.", 1.8)
+		hud.set_cheat_status("Pesanan harian belum tersedia.")
+		return
+	_refresh_after_cheat()
+	var label := String(result.get("label", ""))
+	var qty := int(result.get("qty", 0))
+	var have := int(result.get("have", 0))
+	var added := int(result.get("added", 0))
+	var msg := ""
+	if bool(result.get("done", false)):
+		msg = "Pesanan hari ini sudah dikirim. Tidur untuk pesanan baru."
+	elif added > 0:
+		msg = "Stok pesanan: +%d %s (%d/%d)." % [added, label, have, qty]
+	elif have >= qty:
+		msg = "Pesanan sudah siap: %d %s (%d/%d)." % [qty, label, have, qty]
+	else:
+		msg = "Tas penuh! Kosongkan slot untuk %d %s." % [qty, label]
+	SfxPlayer.play("coin" if added > 0 else "pet")
+	hud.toast(msg, 2.6)
+	hud.set_cheat_status(msg)
+
+
+## Add two servings of every campfire recipe's ingredients.
+func cheat_stock_cooking() -> void:
+	if hud == null:
+		return
+	var result := GameState.cheat_stock_cooking()
+	_refresh_after_cheat()
+	var added: Dictionary = result.get("added", {})
+	var failed: Array = result.get("failed", [])
+	var msg := ""
+	if added.is_empty() and failed.is_empty():
+		msg = "Bahan masak sudah lengkap."
+	else:
+		msg = "Bahan masak: " + _cheat_added_text(added)
+		if not failed.is_empty():
+			msg += " (tas penuh: %s)" % ", ".join(failed)
+	SfxPlayer.play("water" if not added.is_empty() else "pet")
+	hud.toast(msg, 3.2)
+	hud.set_cheat_status(msg)
+
+
+func cheat_add_gold(amount := 300) -> void:
+	if hud == null:
+		return
+	GameState.add_gold(amount)
+	hud.pop_gold(amount)
+	SfxPlayer.play("coin")
+	var msg := "+%d G (demo) • total %d G" % [amount, GameState.gold]
+	hud.toast(msg, 1.8)
+	hud.set_cheat_status(msg)
+
+
+func cheat_fill_stamina() -> void:
+	if hud == null:
+		return
+	GameState.refill_stamina()
+	SfxPlayer.play("pet")
+	var msg := "Stamina penuh (%d/%d)." % [GameState.stamina, GameState.MAX_STAMINA]
+	hud.toast(msg, 1.6)
+	hud.set_cheat_status(msg)
+
+
+func _cheat_added_text(added: Dictionary) -> String:
+	var parts: Array[String] = []
+	for id in added.keys():
+		var key := String(id)
+		if key == "gold":
+			parts.append("+%d G" % int(added[id]))
+		elif key == "upgrade":
+			parts.append("%d alat Lv.2" % int(added[id]))
+		else:
+			parts.append("+%d %s" % [int(added[id]), GameState.item_display_name(key)])
+	return ", ".join(parts)
+
+
+func _refresh_after_cheat() -> void:
+	if hud == null:
+		return
+	hud.set_gold(GameState.gold)
+	hud.set_day(GameState.day)
+	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+	hud.refresh_backpack()
+	hud.refresh_quest()
+	if shop_open:
+		hud.refresh_shop(GameState.gold)
 
 
 # ================================================================ stamina

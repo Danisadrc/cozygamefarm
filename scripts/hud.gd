@@ -159,6 +159,10 @@ const FISH_SPEED := 1.15
 var _pause_root: Control
 var _pause_clock: Label
 
+# F1 demo / cheat menu for presentations.
+var _cheat_root: Control
+var _cheat_status: Label
+
 # Backpack panel ([I] / [Tab]) — 15 backpack slots above 5 active hotbar slots.
 var _bag_root: Control
 var _bag_toggle: Button
@@ -192,6 +196,7 @@ func _ready() -> void:
 	_build_shop()
 	_build_dialogue()
 	_build_cooking()
+	_build_cheats()
 	_build_quest_complete()
 	_build_toast()
 	_build_fade()
@@ -1111,6 +1116,205 @@ func is_cooking_open() -> bool:
 	return _cook_root != null and _cook_root.visible
 
 
+# ------------------------------------------------------------------ demo menu
+
+## F1 presentation menu. Every button calls back into world_game, which owns
+## the toasts, sound effects and HUD refreshes for the actual cheat.
+func _build_cheats() -> void:
+	_cheat_root = Control.new()
+	_cheat_root.name = "DemoMenu"
+	_cheat_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_cheat_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_cheat_root.visible = false
+	add_child(_cheat_root)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.04, 0.03, 0.02, 0.58)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_cheat_root.add_child(dim)
+
+	var panel := _make_box("dt_", Vector2(480, 330))
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -240
+	panel.offset_right = 240
+	panel.offset_top = -165
+	panel.offset_bottom = 165
+	panel.clip_contents = true
+	_cheat_root.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 12)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	margin.add_child(box)
+
+	var title := _label("Menu Demo", 18, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_outline(title, 4)
+	box.add_child(title)
+
+	var hint := _label("F1 / Esc untuk menutup · hanya untuk presentasi", 8, MUTED)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_outline_color", OUTLINE)
+	hint.add_theme_constant_override("outline_size", 2)
+	box.add_child(hint)
+
+	box.add_child(_cheat_section("Waktu"))
+	var time_row := HBoxContainer.new()
+	time_row.add_theme_constant_override("separation", 4)
+	box.add_child(time_row)
+	for entry in [["Pagi", "pagi"], ["Siang", "siang"], ["Sore", "sore"],
+			["Malam", "malam"]]:
+		var button := _pause_button(String(entry[0]), _on_cheat_time.bind(
+			String(entry[1])))
+		button.custom_minimum_size = Vector2(0, 22)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.add_theme_font_size_override("font_size", 10)
+		time_row.add_child(button)
+
+	box.add_child(_cheat_section("Misi Utama"))
+	var quest_row := HBoxContainer.new()
+	quest_row.add_theme_constant_override("separation", 4)
+	box.add_child(quest_row)
+	for entry in [["Selesaikan Misi Ini", "_on_cheat_current"],
+			["Selesaikan Semua Misi", "_on_cheat_all"]]:
+		var button := _pause_button(String(entry[0]), Callable(self, String(entry[1])))
+		button.custom_minimum_size = Vector2(0, 22)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.add_theme_font_size_override("font_size", 9)
+		quest_row.add_child(button)
+
+	box.add_child(_cheat_section("Pesanan & Masak"))
+	var stock_row := HBoxContainer.new()
+	stock_row.add_theme_constant_override("separation", 4)
+	box.add_child(stock_row)
+	for entry in [["Stok Pesanan Harian", "_on_cheat_daily"],
+			["Tambah Bahan Masak", "_on_cheat_cooking"]]:
+		var button := _pause_button(String(entry[0]), Callable(self, String(entry[1])))
+		button.custom_minimum_size = Vector2(0, 22)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.add_theme_font_size_override("font_size", 9)
+		stock_row.add_child(button)
+
+	box.add_child(_cheat_section("Bantuan Cepat"))
+	var extra_row := HBoxContainer.new()
+	extra_row.add_theme_constant_override("separation", 4)
+	box.add_child(extra_row)
+	for entry in [["Isi Stamina", "_on_cheat_stamina"], ["+300 Gold", "_on_cheat_gold"]]:
+		var button := _pause_button(String(entry[0]), Callable(self, String(entry[1])))
+		button.custom_minimum_size = Vector2(0, 22)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.add_theme_font_size_override("font_size", 9)
+		extra_row.add_child(button)
+
+	_cheat_status = _label("Pilih aksi demo.", 9, CREAM)
+	_cheat_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cheat_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_cheat_status.custom_minimum_size = Vector2(0, 26)
+	_cheat_status.add_theme_color_override("font_outline_color", OUTLINE)
+	_cheat_status.add_theme_constant_override("outline_size", 2)
+	box.add_child(_cheat_status)
+
+	var close := _pause_button("Tutup (F1)", _on_cheat_close)
+	close.custom_minimum_size = Vector2(0, 24)
+	box.add_child(close)
+
+
+func _cheat_section(text: String) -> Label:
+	var label := _label(text, 9, GOLD)
+	label.add_theme_color_override("font_outline_color", OUTLINE)
+	label.add_theme_constant_override("outline_size", 2)
+	return label
+
+
+func open_cheats() -> void:
+	if _cheat_root == null or _cheat_root.visible:
+		return
+	if is_any_overlay_open():
+		return
+	if _toast_tween != null:
+		_toast_tween.kill()
+	_toast.modulate.a = 0.0
+	_set_hotbar_visible(false)
+	_cheat_root.visible = true
+	_cheat_root.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(_cheat_root, "modulate:a", 1.0, 0.12)
+	set_cheat_status("Pilih aksi demo. Perubahan langsung terlihat di dunia.")
+	SfxPlayer.play("pet")
+	if game != null and game.has_method("on_cheat_toggled"):
+		game.on_cheat_toggled(true)
+
+
+func close_cheats() -> void:
+	if _cheat_root == null or not _cheat_root.visible:
+		return
+	_cheat_root.visible = false
+	_set_hotbar_visible(true)
+	if game != null and game.has_method("on_cheat_toggled"):
+		game.on_cheat_toggled(false)
+
+
+func toggle_cheats() -> void:
+	if is_cheat_open():
+		close_cheats()
+	else:
+		open_cheats()
+
+
+func is_cheat_open() -> bool:
+	return _cheat_root != null and _cheat_root.visible
+
+
+func set_cheat_status(text: String) -> void:
+	if _cheat_status != null:
+		_cheat_status.text = text
+
+
+func _on_cheat_close() -> void:
+	close_cheats()
+
+
+func _on_cheat_time(phase: String) -> void:
+	if game != null and game.has_method("cheat_set_time"):
+		game.cheat_set_time(phase)
+
+
+func _on_cheat_current() -> void:
+	if game != null and game.has_method("cheat_finish_quest"):
+		game.cheat_finish_quest(false)
+
+
+func _on_cheat_all() -> void:
+	if game != null and game.has_method("cheat_finish_quest"):
+		game.cheat_finish_quest(true)
+
+
+func _on_cheat_daily() -> void:
+	if game != null and game.has_method("cheat_stock_daily_order"):
+		game.cheat_stock_daily_order()
+
+
+func _on_cheat_cooking() -> void:
+	if game != null and game.has_method("cheat_stock_cooking"):
+		game.cheat_stock_cooking()
+
+
+func _on_cheat_stamina() -> void:
+	if game != null and game.has_method("cheat_fill_stamina"):
+		game.cheat_fill_stamina()
+
+
+func _on_cheat_gold() -> void:
+	if game != null and game.has_method("cheat_add_gold"):
+		game.cheat_add_gold()
+
+
 func _build_quest_complete() -> void:
 	_complete_root = Control.new()
 	_complete_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1499,7 +1703,8 @@ func _on_bag_drop() -> void:
 
 func is_any_overlay_open() -> bool:
 	return is_confirm_open() or is_dialogue_open() or is_quest_complete_open() \
-		or is_shop_open() or is_fishing() or is_backpack_open() or is_cooking_open()
+		or is_shop_open() or is_fishing() or is_backpack_open() or is_cooking_open() \
+		or is_cheat_open()
 
 
 func is_shop_open() -> bool:
