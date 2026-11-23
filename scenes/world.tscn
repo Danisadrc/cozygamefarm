@@ -87,10 +87,10 @@ size = Vector2(16, 160)
 size = Vector2(16, 160)
 
 [sub_resource type="RectangleShape2D" id="Shape_1"]
-size = Vector2(41, 24)
+size = Vector2(56, 112)
 
 [sub_resource type="RectangleShape2D" id="Shape_2"]
-size = Vector2(41, 24)
+size = Vector2(56, 112)
 
 [sub_resource type="RectangleShape2D" id="Shape_4"]
 size = Vector2(12, 8)
@@ -475,11 +475,11 @@ texture = ExtResource("3_house")
 centered = false
 
 [node name="WallLeft" type="CollisionShape2D" parent="House"]
-position = Vector2(-31.5, -18)
+position = Vector2(-28, -56)
 shape = SubResource("Shape_1")
 
 [node name="WallRight" type="CollisionShape2D" parent="House"]
-position = Vector2(31.5, -18)
+position = Vector2(28, -56)
 shape = SubResource("Shape_2")
 
 [node name="Tree_01" type="StaticBody2D" parent="."]

@@ -13,6 +13,12 @@ const ICON_WATER: Texture2D = preload("res://assets/ui/water.png")
 const ICON_AXE: Texture2D = preload("res://assets/ui/axe.png")
 const ICON_PICKAXE: Texture2D = preload("res://assets/ui/pickaxe.png")
 const ICON_ROD: Texture2D = preload("res://assets/ui/rod.png")
+const TOOL_ICONS := {
+	"hoe": ICON_HOE,
+	"water": ICON_WATER,
+	"axe": ICON_AXE,
+	"pickaxe": ICON_PICKAXE,
+}
 const ICON_BAG: Texture2D = preload("res://assets/ui/basket.png")
 const ICON_SEEDS: Texture2D = preload("res://assets/crops/seeds_generic.png")
 const ICON_CLOCK: Texture2D = preload("res://assets/ui/sandtimer.png")
@@ -93,10 +99,16 @@ var _toast_tween: Tween
 var _shop_root: Control
 var _shop_gold: Label
 var _shop_rows: VBoxContainer
+var _shop_hint: Label
+var _shop_tab := "seeds"
+var _shop_seed_btn: Button
+var _shop_tool_btn: Button
 var _buy_buttons: Array[Dictionary] = []
+var _upgrade_buttons: Array[Dictionary] = []
 var _confirm_root: Control
 var _confirm_label: Label
 var _confirm_cb: Callable
+var _confirm_cancel_cb: Callable
 var _fade: ColorRect
 var _textures: Dictionary = {}
 var _box_cache: Dictionary = {}
@@ -113,7 +125,9 @@ var _dialog_speaker: Label
 var _dialog_hearts: Label
 var _dialog_text: Label
 var _dialog_gift_btn: Button
+var _dialog_order_btn: Button
 var _dialog_gift_name := ""
+var _dialog_order_label := ""
 var _dialog_open := false
 
 # "Dapur Api Unggun" campfire cooking panel
@@ -302,7 +316,7 @@ func refresh_quest() -> void:
 		child.queue_free()
 	if GameState.quest_done:
 		_quest_head.text = "MISI SELESAI"
-		_quest_title.text = "Desa Direnovasi!"
+		_quest_title.text = "Cozy Valley Makmur!"
 		var done := _label("Terima kasih, petani.", 8, STAM_GREEN)
 		_outline(done, 3)
 		_quest_goals.add_child(done)
@@ -766,6 +780,17 @@ func _build_shop() -> void:
 	_shop_gold = _label("Gold: 100 G", 11, GOLD)
 	box.add_child(_shop_gold)
 
+	# Two tabs: seedlings and tool upgrades.
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 5)
+	box.add_child(tabs)
+	_shop_seed_btn = _pause_button("Beli Bibit", _set_shop_tab.bind("seeds"))
+	_shop_seed_btn.custom_minimum_size = Vector2(104, 24)
+	tabs.add_child(_shop_seed_btn)
+	_shop_tool_btn = _pause_button("Upgrade Alat", _set_shop_tab.bind("tools"))
+	_shop_tool_btn.custom_minimum_size = Vector2(104, 24)
+	tabs.add_child(_shop_tool_btn)
+
 	var sep := HSeparator.new()
 	box.add_child(sep)
 
@@ -779,8 +804,8 @@ func _build_shop() -> void:
 	_shop_rows.add_theme_constant_override("separation", 3)
 	scroll.add_child(_shop_rows)
 
-	var hint := _label("Klik Beli untuk membeli bibit. Esc / Tutup untuk keluar.", 9, MUTED)
-	box.add_child(hint)
+	_shop_hint = _label("Klik Beli untuk membeli bibit. Esc / Tutup untuk keluar.", 9, MUTED)
+	box.add_child(_shop_hint)
 
 
 func _build_dialogue() -> void:
@@ -840,6 +865,12 @@ func _build_dialogue() -> void:
 	_dialog_gift_btn.visible = false
 	foot.add_child(_dialog_gift_btn)
 
+	_dialog_order_btn = _pause_button("Serahkan Pesanan", _on_dialog_order)
+	_dialog_order_btn.tooltip_text = "Tukar item pesanan harian dengan gold"
+	_dialog_order_btn.custom_minimum_size = Vector2(132, 22)
+	_dialog_order_btn.visible = false
+	foot.add_child(_dialog_order_btn)
+
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -857,7 +888,7 @@ func hearts_text(hearts: int) -> String:
 
 
 func open_dialogue(speaker: String, text: String, hearts := -1,
-		gift_name := "") -> void:
+		gift_name := "", order_label := "") -> void:
 	if _toast_tween != null:
 		_toast_tween.kill()
 	_toast.modulate.a = 0.0
@@ -867,11 +898,25 @@ func open_dialogue(speaker: String, text: String, hearts := -1,
 	_dialog_hearts.visible = hearts >= 0
 	_dialog_gift_name = gift_name
 	_dialog_gift_btn.visible = gift_name != ""
+	_dialog_order_label = order_label
+	_dialog_order_btn.visible = order_label != ""
 	_dialog_root.visible = true
 	_dialog_root.modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_property(_dialog_root, "modulate:a", 1.0, 0.12)
 	_dialog_open = true
+
+
+## Rewrite the open dialogue in place (used by the quest board after delivery).
+func update_dialogue(text: String, order_label := "") -> void:
+	_dialog_text.text = text
+	_dialog_order_label = order_label
+	_dialog_order_btn.visible = order_label != ""
+
+
+func _on_dialog_order() -> void:
+	if game != null:
+		game.submit_daily_order()
 
 
 ## Repaint the header hearts / gift button after a gift was accepted.
@@ -1082,12 +1127,12 @@ func _build_quest_complete() -> void:
 	box.add_theme_constant_override("separation", 8)
 	margin.add_child(box)
 
-	var title := _label("Desa Berhasil Renovasi!", 18, GOLD)
+	var title := _label("Cozy Valley Makmur!", 18, GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_outline(title, 4)
 	box.add_child(title)
 
-	var sub := _label("Demo Selesai", 12, CREAM)
+	var sub := _label("Desa Agung • Demo Selesai", 12, CREAM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_outline(sub, 3)
 	box.add_child(sub)
@@ -1118,9 +1163,12 @@ func _build_quest_complete() -> void:
 	row.add_child(again)
 
 
-func show_quest_complete(days: int, gold: int, on_continue: Callable) -> void:
+func show_quest_complete(days: int, gold: int, on_continue: Callable,
+		stats := {}) -> void:
 	_complete_cb = on_continue
-	_complete_summary.text = "Total hari: %d\nTotal gold: %d G\n\nTerima kasih sudah membangun desa!" % [days, gold]
+	_complete_summary.text = "Total hari: %d   •   Total gold: %d G\nHidangan dimasak: %d   •   Hadiah diberikan: %d\nUpgrade alat: %d   •   Hati warga: %d\n\nTerima kasih sudah membangun Cozy Valley!" \
+		% [days, gold, int(stats.get("cooked", 0)), int(stats.get("gifts", 0)),
+			int(stats.get("upgrades", 0)), int(stats.get("hearts", 0))]
 	_complete_root.visible = true
 	_complete_root.modulate.a = 0.0
 	var tw := create_tween()
@@ -1479,10 +1527,37 @@ func _on_pause_quit() -> void:
 
 func _build_shop_rows() -> void:
 	for child in _shop_rows.get_children():
+		_shop_rows.remove_child(child)
 		child.queue_free()
 	_buy_buttons.clear()
+	_upgrade_buttons.clear()
 	if game == null:
 		return
+	if _shop_seed_btn != null:
+		_shop_seed_btn.modulate = GOLD if _shop_tab == "seeds" else Color.WHITE
+	if _shop_tool_btn != null:
+		_shop_tool_btn.modulate = GOLD if _shop_tab == "tools" else Color.WHITE
+	if _shop_tab == "tools":
+		_build_tool_rows()
+	else:
+		_build_seed_rows()
+	_apply_shop_affordability()
+
+
+func _set_shop_tab(tab: String) -> void:
+	if _shop_tab == tab:
+		return
+	_shop_tab = tab
+	if _shop_hint != null:
+		if tab == "tools":
+			_shop_hint.text = "Klik Upgrade untuk alat Lv.2 (150 G + 5 Kayu + 5 Batu)."
+		else:
+			_shop_hint.text = "Klik Beli untuk membeli bibit. Esc / Tutup untuk keluar."
+	_build_shop_rows()
+	refresh_shop(GameState.gold)
+
+
+func _build_seed_rows() -> void:
 	for entry in DataRegistry.get_shop_entries():
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
@@ -1515,6 +1590,52 @@ func _build_shop_rows() -> void:
 		buy.pressed.connect(_on_buy_pressed.bind(String(entry["id"])))
 		row.add_child(buy)
 		_buy_buttons.append({"id": entry["id"], "button": buy, "price": int(entry["price"])})
+
+
+func _build_tool_rows() -> void:
+	for row_data in GameState.tool_upgrade_rows():
+		var tool := String(row_data["tool"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		_shop_rows.add_child(row)
+
+		row.add_child(_icon(TOOL_ICONS.get(tool, ICON_HOE), 18))
+
+		var name := _label("%s  Lv.%d" % [String(row_data["name"]), int(row_data["level"])],
+			11, CREAM)
+		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name)
+
+		var cost := _label("MAX" if bool(row_data["maxed"])
+			else "%dG + %d Kayu + %d Batu" % [GameState.TOOL_UPGRADE_GOLD,
+				GameState.TOOL_UPGRADE_WOOD, GameState.TOOL_UPGRADE_ROCK],
+			9, GOLD if not bool(row_data["maxed"]) else MUTED)
+		cost.custom_minimum_size = Vector2(132, 0)
+		cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(cost)
+
+		var btn := Button.new()
+		btn.text = "MAX" if bool(row_data["maxed"]) else "Upgrade"
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.custom_minimum_size = Vector2(58, 22)
+		btn.add_theme_font_size_override("font_size", 10)
+		btn.pressed.connect(_on_upgrade_pressed.bind(tool))
+		row.add_child(btn)
+		_upgrade_buttons.append({"tool": tool, "button": btn})
+
+
+func _on_upgrade_pressed(tool: String) -> void:
+	if game == null:
+		return
+	if game.upgrade_tool(tool):
+		_build_shop_rows()
+
+
+func _apply_shop_affordability() -> void:
+	for entry in _buy_buttons:
+		entry["button"].disabled = GameState.gold < int(entry["price"])
+	for entry in _upgrade_buttons:
+		entry["button"].disabled = not GameState.can_upgrade_tool(String(entry["tool"]))
 
 
 # ------------------------------------------------------------------ live data
@@ -1700,17 +1821,27 @@ func pop_gold(amount: int) -> void:
 
 # ------------------------------------------------------------------ confirm
 
-func open_confirm(text: String, on_yes: Callable) -> void:
+func open_confirm(text: String, on_yes: Callable, on_no := Callable()) -> void:
 	_confirm_label.text = text
 	_confirm_cb = on_yes
+	_confirm_cancel_cb = on_no
 	_confirm_root.visible = true
 	_confirm_root.modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_property(_confirm_root, "modulate:a", 1.0, 0.12)
 
 
+## Close without accepting. Fires the optional cancel callback so a prompt that
+## locked player input can release it again.
 func close_confirm() -> void:
+	if _confirm_root == null or not _confirm_root.visible:
+		return
 	_confirm_root.visible = false
+	_confirm_cb = Callable()
+	var cb := _confirm_cancel_cb
+	_confirm_cancel_cb = Callable()
+	if cb.is_valid():
+		cb.call()
 
 
 func is_confirm_open() -> bool:
@@ -1720,6 +1851,7 @@ func is_confirm_open() -> bool:
 func _on_confirm_yes() -> void:
 	var cb := _confirm_cb
 	_confirm_cb = Callable()
+	_confirm_cancel_cb = Callable()
 	_confirm_root.visible = false
 	if cb.is_valid():
 		cb.call()
@@ -1732,6 +1864,7 @@ func open_shop(gold: int) -> void:
 		_toast_tween.kill()
 	_toast.modulate.a = 0.0
 	_item_name.visible = false
+	_build_shop_rows()
 	refresh_shop(gold)
 	_shop_root.visible = true
 	_shop_root.modulate.a = 0.0
@@ -1748,8 +1881,7 @@ func refresh_shop(gold: int) -> void:
 	if _shop_gold == null:
 		return
 	_shop_gold.text = "Gold: %d G" % gold
-	for entry in _buy_buttons:
-		entry["button"].disabled = gold < int(entry["price"])
+	_apply_shop_affordability()
 
 
 func fade_to(alpha: float, duration: float) -> Tween:

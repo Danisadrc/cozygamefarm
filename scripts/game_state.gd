@@ -29,7 +29,7 @@ const TOOL_NAMES := {
 }
 
 # ---------------------------------------------------------------- village quests
-# Three sequential objectives, auto-tracked. `gold` goals are checked against
+# Five sequential objectives, auto-tracked. `gold` goals are checked against
 # the live wallet; every other key counts events while that quest is active.
 const QUESTS := [
 	{
@@ -43,8 +43,18 @@ const QUESTS := [
 		"reward": 150,
 	},
 	{
-		"title": "Renovasi Desa",
-		"goals": {"gold": 400, "wood": 10, "rock": 8},
+		"title": "Juru Masak & Tetangga Baik",
+		"goals": {"cook": 2, "gift": 1},
+		"reward": 200,
+	},
+	{
+		"title": "Peralatan Tangguh",
+		"goals": {"upgrade": 1, "harvest": 8},
+		"reward": 250,
+	},
+	{
+		"title": "Renovasi Agung Desa",
+		"goals": {"gold": 600, "wood": 15, "rock": 12},
 		"reward": 0,
 	},
 ]
@@ -56,12 +66,31 @@ const GOAL_LABELS := {
 	"egg": "Telur",
 	"rock": "Batu",
 	"gold": "Gold",
+	"cook": "Masak",
+	"gift": "Hadiah",
+	"upgrade": "Upgrade",
 }
 
 var quest_index := 0
 var quest_done := false
 var quest_counts: Dictionary = {}
 var _quest_checking := false
+
+# ---------------------------------------------------------------- daily orders
+# One rotating side order on the quest board. A new order is rolled every time
+# the player sleeps, and the reward is paid once per day when it is delivered.
+const DAILY_ORDERS := [
+	{"id": "carrot", "qty": 2, "reward": 60},
+	{"id": "potato", "qty": 2, "reward": 70},
+	{"id": "milk", "qty": 1, "reward": 80},
+	{"id": "fish", "qty": 1, "reward": 70},
+	{"id": "wood", "qty": 3, "reward": 60},
+	{"id": "egg", "qty": 2, "reward": 90},
+	{"id": "cabbage", "qty": 1, "reward": 120},
+]
+
+var daily_order: Dictionary = {}
+var daily_order_done := false
 
 # ------------------------------------------------------------------ time
 
@@ -79,6 +108,21 @@ var _minute_accum := 0.0
 
 var gold := START_GOLD
 var stamina := MAX_STAMINA
+
+# ---------------------------------------------------------------- tool levels
+# Every tool starts at Lv.1 and can be upgraded once (max Lv.2) at the market.
+# Lv.2 halves stamina use (rounded up); the axe and pickaxe also break their
+# resource in two hits instead of three.
+const TOOL_MAX_LEVEL := 2
+const TOOL_UPGRADE_GOLD := 150
+const TOOL_UPGRADE_WOOD := 5
+const TOOL_UPGRADE_ROCK := 5
+const UPGRADABLE_TOOLS := ["hoe", "water", "axe", "pickaxe"]
+
+var hoe_level := 1
+var water_level := 1
+var axe_level := 1
+var pickaxe_level := 1
 
 # ---------------------------------------------------------------- statistics
 # Lifetime gameplay counters (cooking / gifting), kept across sleeps and reset
@@ -153,7 +197,7 @@ func _process(delta: float) -> void:
 
 ## Put a brand-new game back on the table: starting gold / day / 06:00 clock /
 ## full stamina, the five default tools in the hotbar, carrot + potato seeds in
-## the backpack, and quest 1 of 3 untouched.
+## the backpack, and quest 1 of 5 untouched.
 ## Called by the title screen's "Mulai Bermain" button, and safe to call at any
 ## point because every value is replaced rather than adjusted.
 func reset() -> void:
@@ -178,6 +222,15 @@ func reset() -> void:
 	friendship_hearts.clear()
 	gift_day.clear()
 	friendship_rewarded.clear()
+
+	hoe_level = 1
+	water_level = 1
+	axe_level = 1
+	pickaxe_level = 1
+
+	daily_order.clear()
+	daily_order_done = false
+	roll_daily_order()
 
 	# Tell any live UI (the HUD survives a scene change only in theory, but a
 	# reset from inside the world should still repaint everything).
@@ -213,6 +266,7 @@ func _advance_time(delta: float) -> void:
 
 func _next_day() -> void:
 	day += 1
+	roll_daily_order()
 	day_changed.emit(day)
 
 
@@ -289,6 +343,89 @@ func restore_stamina(amount: int) -> void:
 func refill_stamina() -> void:
 	stamina = MAX_STAMINA
 	stamina_changed.emit(stamina)
+
+
+# ------------------------------------------------------------------ tool levels
+
+func tool_level(tool: String) -> int:
+	match tool:
+		"hoe":
+			return hoe_level
+		"water":
+			return water_level
+		"axe":
+			return axe_level
+		"pickaxe":
+			return pickaxe_level
+	return 1
+
+
+func set_tool_level(tool: String, level: int) -> void:
+	var value := clampi(level, 1, TOOL_MAX_LEVEL)
+	match tool:
+		"hoe":
+			hoe_level = value
+		"water":
+			water_level = value
+		"axe":
+			axe_level = value
+		"pickaxe":
+			pickaxe_level = value
+
+
+func tool_upgraded(tool: String) -> bool:
+	return tool_level(tool) >= TOOL_MAX_LEVEL
+
+
+## True when the tool can still be upgraded and the wallet + materials allow it.
+func can_upgrade_tool(tool: String) -> bool:
+	if tool_upgraded(tool):
+		return false
+	return gold >= TOOL_UPGRADE_GOLD \
+		and count_item("wood") >= TOOL_UPGRADE_WOOD \
+		and count_item("rock") >= TOOL_UPGRADE_ROCK
+
+
+## Pay the market price and raise the tool one level. Returns false untouched.
+func upgrade_tool(tool: String) -> bool:
+	if not can_upgrade_tool(tool):
+		return false
+	if not spend_gold(TOOL_UPGRADE_GOLD):
+		return false
+	remove_item("wood", TOOL_UPGRADE_WOOD)
+	remove_item("rock", TOOL_UPGRADE_ROCK)
+	set_tool_level(tool, tool_level(tool) + 1)
+	inventory_changed.emit()
+	quest_event("upgrade", 1)
+	return true
+
+
+## Stamina paid for one tool swing: Lv.2 spends half (rounded up).
+func tool_stamina_cost(tool: String, base_cost: int) -> int:
+	if tool_level(tool) >= TOOL_MAX_LEVEL:
+		return int((base_cost + 1) / 2)
+	return base_cost
+
+
+## Hits needed to fell a tree / crack a boulder (Lv.2 axe/pickaxe = 2 hits).
+func resource_hits_required(kind: String) -> int:
+	var tool := "axe" if kind == "tree" else "pickaxe"
+	return 2 if tool_upgraded(tool) else 3
+
+
+## Every upgradeable tool with its level, for the market's Upgrade tab.
+func tool_upgrade_rows() -> Array:
+	var out: Array = []
+	for tool in UPGRADABLE_TOOLS:
+		out.append({
+			"tool": tool,
+			"name": String(TOOL_NAMES.get(tool, tool)),
+			"level": tool_level(tool),
+			"max": TOOL_MAX_LEVEL,
+			"maxed": tool_upgraded(tool),
+			"can": can_upgrade_tool(tool),
+		})
+	return out
 
 
 # ------------------------------------------------------------------ inventory
@@ -744,6 +881,62 @@ func sell_all_produce() -> int:
 	return total
 
 
+# ---------------------------------------------------------------- daily orders
+
+## Roll the next side order. Tries a few times to avoid repeating yesterday's.
+func roll_daily_order() -> void:
+	daily_order_done = false
+	var previous := String(daily_order.get("id", ""))
+	var pick: Dictionary = DAILY_ORDERS[randi_range(0, DAILY_ORDERS.size() - 1)]
+	for _i in 6:
+		if String(pick.get("id", "")) != previous:
+			break
+		pick = DAILY_ORDERS[randi_range(0, DAILY_ORDERS.size() - 1)]
+	daily_order = pick.duplicate()
+
+
+## Everything the quest board needs for the side order.
+func daily_order_progress() -> Dictionary:
+	if daily_order.is_empty():
+		return {}
+	var id := String(daily_order.get("id", ""))
+	var need := int(daily_order.get("qty", 1))
+	var have := mini(count_item(id), need)
+	return {
+		"id": id,
+		"label": DataRegistry.ingredient_name(id),
+		"qty": need,
+		"have": have,
+		"reward": int(daily_order.get("reward", 0)),
+		"done": daily_order_done,
+		"ready": not daily_order_done and have >= need,
+	}
+
+
+func can_submit_daily_order() -> bool:
+	if daily_order.is_empty() or daily_order_done:
+		return false
+	return count_item(String(daily_order.get("id", ""))) >= int(daily_order.get("qty", 1))
+
+
+## Deliver today's order: take the items, pay the reward. {} when not possible.
+func submit_daily_order() -> Dictionary:
+	if not can_submit_daily_order():
+		return {}
+	var id := String(daily_order.get("id", ""))
+	var qty := int(daily_order.get("qty", 1))
+	var reward := int(daily_order.get("reward", 0))
+	remove_item(id, qty)
+	daily_order_done = true
+	add_gold(reward)
+	return {
+		"id": id,
+		"label": DataRegistry.ingredient_name(id),
+		"qty": qty,
+		"reward": reward,
+	}
+
+
 # ---------------------------------------------------------------- village quests
 
 func current_quest() -> Dictionary:
@@ -850,12 +1043,16 @@ func _on_gold_changed_for_quest(_new_gold: int) -> void:
 ## Flavour text for the villager, tied to the active quest.
 func quest_hint() -> String:
 	if quest_done:
-		return "Terima kasih sudah merenovasi desa! Sekarang nikmati hari-hari tenang di ladang."
+		return "Cozy Valley sudah makmur! Terima kasih, petani. Sekarang nikmati hari-hari tenang di ladang."
 	match quest_index:
 		0:
 			return "Papan Misi di dekat pasar mencari petani baru: panen 3 tanaman dan kumpulkan 5 kayu."
 		1:
 			return "Ikan di kolam sedang banyak! Papan Misi minta 2 ikan segar dan 2 telur dari kandang."
 		2:
-			return "Warga mengumpulkan 400 G, 10 kayu, dan 8 batu untuk merenovasi desa. Papan Misi menunggu di dekat pasar!"
+			return "Warga ingin mencicipi masakanmu. Masak 2 hidangan di api unggun dan beri 1 hadiah ke warga."
+		3:
+			return "Alat yang tajam membuat kerja ringan. Upgrade 1 alat di Kios Pasar, lalu panen total 8 tanaman."
+		4:
+			return "Renovasi agung dimulai! Kumpulkan 600 G, 15 kayu, dan 12 batu untuk membuat desa makmur."
 	return ""

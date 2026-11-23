@@ -428,17 +428,61 @@ func _open_quest_board() -> void:
 	if player != null:
 		player.input_locked = true
 	hud.hide_prompt()
+	_dialogue_npc = null
+	var speaker := "Papan Misi"
+	if not GameState.quest_done:
+		speaker = "Papan Misi • Misi %d/%d" % [GameState.quest_index + 1,
+			GameState.QUESTS.size()]
+	hud.open_dialogue(speaker, _quest_board_text(), -1, "", _quest_board_order_label())
+
+
+## The board's full body: active main quest, then today's side order.
+func _quest_board_text() -> String:
+	var lines: Array[String] = []
 	if GameState.quest_done:
-		hud.open_dialogue("Papan Misi",
-			"Semua misi desa sudah selesai.\nDesa berhasil direnovasi! Terima kasih, petani.")
+		lines.append("Semua misi desa selesai. Cozy Valley Makmur!")
+	else:
+		var quest := GameState.current_quest()
+		var reward := GameState.quest_reward()
+		var reward_text := "Renovasi Agung" if reward <= 0 else "%d G" % reward
+		lines.append("%s\n%s\nHadiah: %s"
+			% [String(quest.get("title", "")), GameState.quest_progress_text(),
+				reward_text])
+
+	lines.append("")
+	lines.append("— Pesanan Harian —")
+	var order := GameState.daily_order_progress()
+	if order.is_empty():
+		lines.append("Belum ada pesanan hari ini.")
+	elif bool(order["done"]):
+		lines.append("Pesanan hari ini sudah dikirim. Tidur untuk pesanan baru.")
+	else:
+		lines.append("Antar %d %s  (stok %d/%d)\nHadiah: +%d G"
+			% [int(order["qty"]), String(order["label"]), int(order["have"]),
+				int(order["qty"]), int(order["reward"])])
+	return "\n".join(lines)
+
+
+## "Serahkan Pesanan" is offered until today's order has been delivered.
+func _quest_board_order_label() -> String:
+	var order := GameState.daily_order_progress()
+	if order.is_empty() or bool(order["done"]):
+		return ""
+	return "Serahkan Pesanan"
+
+
+## HUD button on the quest board: trade the requested items for gold.
+func submit_daily_order() -> void:
+	var result := GameState.submit_daily_order()
+	if result.is_empty():
+		hud.toast("Bahan pesanan belum cukup. Cek stok di tas.", 1.8)
 		return
-	var quest := GameState.current_quest()
-	var reward := GameState.quest_reward()
-	var reward_text := "Renovasi Desa" if reward <= 0 else "%d G" % reward
-	hud.open_dialogue(
-		"Papan Misi • Misi %d/%d" % [GameState.quest_index + 1, GameState.QUESTS.size()],
-		"%s\n%s\n\nHadiah: %s" % [String(quest.get("title", "")),
-			GameState.quest_progress_text(), reward_text])
+	SfxPlayer.play("coin")
+	hud.set_gold(GameState.gold)
+	hud.pop_gold(int(result["reward"]))
+	hud.toast("Pesanan %d %s dikirim: +%d G"
+		% [int(result["qty"]), String(result["label"]), int(result["reward"])], 2.2)
+	hud.update_dialogue(_quest_board_text(), _quest_board_order_label())
 
 
 func _close_dialogue() -> void:
@@ -485,6 +529,7 @@ func cook_recipe(id: String) -> bool:
 		hud.toast("Tas penuh! Jual dulu hasil panen di Shipping Bin.", 1.8)
 		return false
 	SfxPlayer.play("water")
+	GameState.quest_event("cook", 1)
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
 	hud.toast("%s siap disantap! (total masak: %d)"
 		% [DataRegistry.item_name(id), GameState.cooked_count], 1.8)
@@ -505,6 +550,7 @@ func give_gift(who: String) -> void:
 		return
 	GameState.record_gift(who)
 	var hearts := GameState.add_heart(who)
+	GameState.quest_event("gift", 1)
 	SfxPlayer.play("coin")
 	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
 
@@ -548,7 +594,16 @@ func _on_quests_done() -> void:
 		player.input_locked = true
 	SfxPlayer.play("catch")
 	hud.hide_prompt()
-	hud.show_quest_complete(GameState.day, GameState.gold, _resume_free_play)
+	var hearts := 0
+	for value in GameState.friendship_hearts.values():
+		hearts += int(value)
+	hud.show_quest_complete(GameState.day, GameState.gold, _resume_free_play, {
+		"cooked": GameState.cooked_count,
+		"gifts": GameState.gifts_given,
+		"hearts": hearts,
+		"upgrades": (GameState.hoe_level - 1) + (GameState.water_level - 1) \
+			+ (GameState.axe_level - 1) + (GameState.pickaxe_level - 1),
+	})
 
 
 func _resume_free_play() -> void:
@@ -577,7 +632,7 @@ func use_tool(cell: Vector2i) -> void:
 	var is_soil_tool := tool == "hoe" or tool == "water"
 	var acted: bool = farm.can_use(cell, item)
 	if is_soil_tool and not farm._is_mature(cell) and acted:
-		if not _spend_stamina(5):
+		if not _spend_stamina(GameState.tool_stamina_cost(tool, 5)):
 			return
 	farm.use_tool(cell, item)
 	if acted:
@@ -635,7 +690,15 @@ func _ask_sleep() -> void:
 	if player != null:
 		player.input_locked = true
 	hud.hide_prompt()
-	hud.open_confirm("Tidur dan lanjut ke hari berikutnya?", _do_sleep)
+	hud.open_confirm("Tidur dan lanjut ke hari berikutnya?", _do_sleep, _cancel_sleep)
+
+
+## "Tidak" / Esc on the sleep prompt: release the input lock again.
+func _cancel_sleep() -> void:
+	if player != null and not busy:
+		player.input_locked = false
+	_last_prompt = ""
+	_refresh_prompt()
 
 
 func _do_sleep() -> void:
@@ -670,6 +733,10 @@ func _do_sleep() -> void:
 		msg += "Tanaman butuh disiram sebelum tidur."
 	if _last_products > 0:
 		msg += " %d produk ternak siap diambil [E]." % _last_products
+	var order := GameState.daily_order_progress()
+	if not order.is_empty() and not bool(order["done"]):
+		msg += " Pesanan harian baru: %d %s (+%d G)." % [int(order["qty"]),
+			String(order["label"]), int(order["reward"])]
 	hud.toast(msg, 3.4)
 
 	var fade_out: Tween = hud.fade_to(0.0, 0.35)
@@ -795,7 +862,8 @@ func _hit_resource_near(tool: String) -> void:
 	if best == null:
 		hud.toast("Tidak ada %s di depanmu." % ("batu" if want == "boulder" else "pohon"))
 		return
-	var cost := 8 if want == "boulder" else 7
+	var cost := GameState.tool_stamina_cost(tool,
+		8 if want == "boulder" else 7)
 	if not _spend_stamina(cost):
 		return
 	if player != null and player.has_method("play_action"):
@@ -810,7 +878,7 @@ func _hit_resource(node: Node, kind: String) -> void:
 	node.set_meta("hits", hits)
 	_shake(node)
 	_burst(_resource_center(node), kind)
-	if hits >= 3:
+	if hits >= GameState.resource_hits_required(kind):
 		node.set_meta("hits", 0)
 		_break_resource(node, kind)
 
@@ -1011,6 +1079,31 @@ func buy_seed(id: String) -> void:
 	hud.refresh_shop(GameState.gold)
 	hud.toast("Bibit %s +1  (-%d G)" % [DataRegistry.crop_seed_name(id), price], 1.8)
 	SfxPlayer.play("coin")
+
+
+## HUD Upgrade tab button -> spend 150 G + 5 wood + 5 rock to reach Lv.2.
+func upgrade_tool(tool: String) -> bool:
+	if not shop_open:
+		return false
+	var display := String(GameState.TOOL_NAMES.get(tool, tool))
+	if GameState.tool_upgraded(tool):
+		hud.toast("%s sudah mencapai Lv.2." % display, 1.6)
+		return false
+	if not GameState.can_upgrade_tool(tool):
+		hud.toast("Butuh %d G + %d Kayu + %d Batu untuk upgrade."
+			% [GameState.TOOL_UPGRADE_GOLD, GameState.TOOL_UPGRADE_WOOD,
+				GameState.TOOL_UPGRADE_ROCK], 2.0)
+		return false
+	if not GameState.upgrade_tool(tool):
+		return false
+	hud.set_gold(GameState.gold)
+	hud.refresh_hotbar(GameState.hotbar, GameState.selected_slot)
+	hud.refresh_shop(GameState.gold)
+	hud.toast("%s naik ke Lv.2! Stamina -50%%%s" % [display,
+		", hancurkan dalam 2 pukulan." if tool == "axe" or tool == "pickaxe" else "."],
+		2.4)
+	SfxPlayer.play("coin")
+	return true
 
 
 # ================================================================ lighting
